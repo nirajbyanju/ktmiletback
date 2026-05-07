@@ -1,0 +1,114 @@
+# Property Listing API Filters Documentation
+
+## Base URL
+`GET /api/properties`
+
+## Query Parameters
+
+### Text Search Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `title` | string | Search by property title (partial match) | `?title=Luxury Villa` |
+| `tags` | string | Search by tags (comma-separated) | `?tags=new,featured,beachfront` |
+| `property_code` | string | Search by property code | `?property_code=PROP-202401-0001` |
+| `description` | string | Search in description | `?description=swimming pool` |
+
+### Exact Match Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `status` | string | Property status (draft/published) | `?status=published` |
+| `currency` | string | Currency code | `?currency=NPR` |
+
+### Foreign Key Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `property_face_id` | integer/array | Property face ID(s) | `?property_face_id=1` or `?property_face_id[]=1&property_face_id[]=2` |
+| `property_type_id` | integer/array | Property type ID(s) | `?property_type_id=3` |
+| `listing_type_id` | integer/array | Listing type ID(s) | `?listing_type_id=2` |
+| `property_status_id` | integer/array | Property status ID(s) | `?property_status_id=1` |
+| `road_type_id` | integer/array | Road type ID(s) | `?road_type_id=2` |
+| `road_condition_id` | integer/array | Road condition ID(s) | `?road_condition_id=1` |
+| `water_source_id` | integer/array | Water source ID(s) | `?water_source_id=3` |
+| `sewage_type_id` | integer/array | Sewage type ID(s) | `?sewage_type_id=1` |
+| `land_unit_id` | integer/array | Land unit ID(s) | `?land_unit_id=2` |
+| `measure_unit_id` | integer/array | Measure unit ID(s) | `?measure_unit_id=1` |
+
+### Boolean Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `is_featured` | boolean | Featured properties | `?is_featured=true` |
+| `is_negotiable` | boolean | Negotiable properties | `?is_negotiable=true` |
+| `banking_available` | boolean | Banking available | `?banking_available=true` |
+| `has_electricity` | boolean | Has electricity | `?has_electricity=true` |
+| `is_road_accessible` | boolean | Road accessible | `?is_road_accessible=true` |
+| `is_verified` | boolean | Verified properties | `?is_verified=true` |
+
+### Range Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `min_price` | number | Minimum price | `?min_price=1000000` |
+| `max_price` | number | Maximum price | `?max_price=5000000` |
+| `min_land_area` | number | Minimum land area | `?min_land_area=500` |
+| `max_land_area` | number | Maximum land area | `?max_land_area=2000` |
+| `min_road_width` | number | Minimum road width | `?min_road_width=10` |
+| `max_road_width` | number | Maximum road width | `?max_road_width=30` |
+| `min_length` | number | Minimum length | `?min_length=50` |
+| `max_length` | number | Maximum length | `?max_length=100` |
+| `min_height` | number | Minimum height | `?min_height=10` |
+| `max_height` | number | Maximum height | `?max_height=50` |
+
+### Date Range Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `created_from` | date | Created from date | `?created_from=2024-01-01` |
+| `created_to` | date | Created to date | `?created_to=2024-12-31` |
+| `updated_from` | date | Updated from date | `?updated_from=2024-01-01` |
+| `updated_to` | date | Updated to date | `?updated_to=2024-12-31` |
+| `verified_from` | date | Verified from date | `?verified_from=2024-01-01` |
+| `verified_to` | date | Verified to date | `?verified_to=2024-12-31` |
+
+### Address Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `city` | string | City name | `?city=Kathmandu` |
+| `state` | string | State name | `?state=Bagmati` |
+| `country` | string | Country name | `?country=Nepal` |
+| `zip_code` | string | ZIP/Postal code | `?zip_code=44600` |
+| `address_line` | string | Address line search | `?address_line=Thamel` |
+
+### House Details Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `bedrooms` | integer | Number of bedrooms | `?bedrooms=3` |
+| `bathrooms` | integer | Number of bathrooms | `?bathrooms=2` |
+| `kitchens` | integer | Number of kitchens | `?kitchens=1` |
+| `floors` | integer | Number of floors | `?floors=2` |
+| `parking` | boolean | Has parking | `?parking=true` |
+| `furnished` | boolean | Is furnished | `?furnished=true` |
+
+### Geographic Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `latitude` | float | Latitude for nearby search | `?latitude=27.7172` |
+| `longitude` | float | Longitude for nearby search | `?longitude=85.3240` |
+| `distance` | integer | Search radius in km | `?distance=10` |
+
+### Special Filters
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `ids` | string/array | Specific property IDs | `?ids=1,2,3` or `?ids[]=1&ids[]=2` |
+| `exclude_ids` | string/array | Exclude property IDs | `?exclude_ids=4,5` |
+| `has_images` | boolean | Properties with/without images | `?has_images=true` |
+| `has_address` | boolean | Properties with/without address | `?has_address=true` |
+
+### Pagination & Sorting
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `page` | integer | Page number | `?page=2` |
+| `limit` | integer | Items per page | `?limit=20` |
+| `order_by` | string | Sort direction (ASC/DESC) | `?order_by=DESC` |
+| `order_by_field` | string | Field to sort by | `?order_by_field=advertise_price` |
+
+## Example Requests
+
+1. **Search by tags and price range:**
