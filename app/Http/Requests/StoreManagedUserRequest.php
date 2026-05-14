@@ -25,14 +25,6 @@ class StoreManagedUserRequest extends FormRequest
             'roles.*' => 'required',
             'status' => 'nullable|boolean',
             'email_verified' => 'nullable|boolean',
-            'date_of_birth' => 'nullable|date',
-            'bio' => 'nullable|string|max:255',
-            'gender' => 'nullable|string|max:50',
-            'country' => 'nullable|string|max:255',
-            'state' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'local_bodies' => 'nullable|string|max:255',
-            'street_name' => 'nullable|string|max:255',
         ];
     }
 }

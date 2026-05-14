@@ -15,20 +15,10 @@ class PermissionsSeeder extends Seeder
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $permissions = [
+        Permission::whereIn('name', [
             'view_dashboard',
-            'view_employees',
-            'create_employees',
-            'edit_employees',
-            'delete_employees',
-            'view_menus',
-            'create_menus',
-            'edit_menus',
-            'delete_menus',
             'view_reports',
             'export_reports',
-            'view_settings',
-            'edit_settings',
             'view_products',
             'create_products',
             'edit_products',
@@ -40,6 +30,30 @@ class PermissionsSeeder extends Seeder
             'view_inventory',
             'edit_inventory',
             'upload_inventory',
+        ])->delete();
+
+        $permissions = [
+            'view_employees',
+            'create_employees',
+            'edit_employees',
+            'delete_employees',
+            'view_menus',
+            'create_menus',
+            'edit_menus',
+            'delete_menus',
+            'view_settings',
+            'edit_settings',
+            'view_course_catalog',
+            'create_course_catalog',
+            'edit_course_catalog',
+            'delete_course_catalog',
+            'view_invoices',
+            'create_invoices',
+            'edit_invoices',
+            'approve_invoices',
+            'view_enrollments',
+            'create_enrollments',
+            'edit_enrollments',
             'manage_all'
         ];
 

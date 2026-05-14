@@ -15,6 +15,7 @@ class UserSeeder extends Seeder
             'email' => 'nirajbyanju1234@gmail.com',
         ], [
             'userCode' => 'SM-2026-1',
+            'name' => 'Niraj Byanju',
             'first_name' => 'Niraj',
             'middle_name' => null,
             'last_name' => 'Byanju',
@@ -25,12 +26,13 @@ class UserSeeder extends Seeder
             'status' => 1,
             'remember_token' => Str::random(10),
         ]);
-        $admin->syncRoles(['Admin']);
+        $admin->syncRoles(['Super Admin']);
 
         $manager = User::updateOrCreate([
             'email' => 'manager@example.com',
         ], [
             'userCode' => 'SM-2026-2',
+            'name' => 'Manager User',
             'first_name' => 'Manager',
             'middle_name' => null,
             'last_name' => 'User',
@@ -47,6 +49,7 @@ class UserSeeder extends Seeder
             'email' => 'employee@example.com',
         ], [
             'userCode' => 'SM-2026-3',
+            'name' => 'Employee User',
             'first_name' => 'Employee',
             'middle_name' => null,
             'last_name' => 'User',
@@ -57,6 +60,6 @@ class UserSeeder extends Seeder
             'status' => 1,
             'remember_token' => Str::random(10),
         ]);
-        $employee->syncRoles(['Employee']);
+        $employee->syncRoles(['User']);
     }
 }

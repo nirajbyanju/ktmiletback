@@ -39,6 +39,29 @@ trait AuthorizesRbacRequests
         ], 403);
     }
 
+    protected function authorizeSuperAdmin(
+        Request $request,
+        string $message = 'Only Super Admin can manage users and roles.'
+    ): ?JsonResponse {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        if (method_exists($user, 'hasRole') && $user->hasRole('Super Admin')) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+        ], 403);
+    }
+
     protected function permissionNameVariants(string $ability): array
     {
         $ability = trim($ability);

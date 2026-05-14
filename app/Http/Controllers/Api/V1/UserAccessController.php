@@ -29,7 +29,7 @@ class UserAccessController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['view_employees', 'view_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -69,7 +69,7 @@ class UserAccessController extends BaseController
 
     public function show(Request $request, User $user): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['view_employees', 'view_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -81,7 +81,7 @@ class UserAccessController extends BaseController
 
     public function store(StoreManagedUserRequest $request): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['create_employees', 'edit_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -96,7 +96,7 @@ class UserAccessController extends BaseController
 
     public function syncRoles(Request $request, User $user): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['edit_employees', 'edit_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -131,7 +131,7 @@ class UserAccessController extends BaseController
 
     public function syncPermissions(Request $request, User $user): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['edit_permissions', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -165,7 +165,7 @@ class UserAccessController extends BaseController
 
     public function updateStatus(UpdateManagedUserStatusRequest $request, User $user): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['edit_employees', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -184,25 +184,13 @@ class UserAccessController extends BaseController
 
     private function buildAccessPayload(User $user): array
     {
-        $user->loadMissing('roles', 'userDetail');
+        $user->loadMissing('roles');
 
         return [
             'user' => $this->formatUserSummary($user),
             'roles' => $user->getRoleNames()->values(),
             'direct_permissions' => $user->getDirectPermissions()->pluck('name')->sort()->values(),
             'all_permissions' => $user->getAllPermissions()->pluck('name')->sort()->values(),
-            'detail' => [
-                'date_of_birth' => optional($user->userDetail?->date_of_birth)->toDateString(),
-                'bio' => $user->userDetail?->bio,
-                'profile_picture' => $user->userDetail?->profile_picture,
-                'profile_picture_url' => $user->userDetail?->profile_picture_url,
-                'gender' => $user->userDetail?->gender,
-                'country' => $user->userDetail?->country,
-                'state' => $user->userDetail?->state,
-                'district' => $user->userDetail?->district,
-                'local_bodies' => $user->userDetail?->local_bodies,
-                'street_name' => $user->userDetail?->street_name,
-            ],
             'menus' => $this->userMenuService->getForUser($user),
         ];
     }

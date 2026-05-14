@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Menu;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -47,11 +48,27 @@ class RolePermissionSeeder extends Seeder
             ]);
         }
 
-        foreach (['Super Admin', 'Admin', 'Manager', 'Employee'] as $roleName) {
+        $employeeRole = Role::where('name', 'Employee')->where('guard_name', 'web')->first();
+        $userRole = Role::where('name', 'User')->where('guard_name', 'web')->first();
+
+        if ($employeeRole && !$userRole) {
+            $employeeRole->update(['name' => 'User']);
+        }
+
+        foreach (['Super Admin', 'Admin', 'Manager', 'User'] as $roleName) {
             Role::firstOrCreate([
                 'name' => $roleName,
                 'guard_name' => 'web',
             ]);
+        }
+
+        if ($employeeRole = Role::where('name', 'Employee')->where('guard_name', 'web')->first()) {
+            User::role('Employee')->get()->each(function (User $user): void {
+                $user->assignRole('User');
+                $user->removeRole('Employee');
+            });
+
+            $employeeRole->delete();
         }
 
         $menuPermissionBases = Menu::query()
@@ -84,24 +101,53 @@ class RolePermissionSeeder extends Seeder
 
         Role::findByName('Super Admin')->syncPermissions(Permission::all());
 
-        Role::findByName('Admin')->syncPermissions($allPermissionNames);
+        $adminRestrictedPermissions = [
+            'view_employees',
+            'create_employees',
+            'edit_employees',
+            'delete_employees',
+            'view_roles',
+            'create_roles',
+            'edit_roles',
+            'delete_roles',
+            'view_permissions',
+            'edit_permissions',
+            'manage_all',
+            'view_access_control',
+            'create_access_control',
+            'edit_access_control',
+            'delete_access_control',
+            'approve_access_control',
+            'export_access_control',
+            'upload_access_control',
+            'manage_access_control',
+            'view_user_management',
+            'create_user_management',
+            'edit_user_management',
+            'delete_user_management',
+            'approve_user_management',
+            'export_user_management',
+            'upload_user_management',
+            'manage_user_management',
+        ];
+
+        Role::findByName('Admin')->syncPermissions(
+            collect($allPermissionNames)
+                ->reject(fn (string $permissionName) => in_array($permissionName, $adminRestrictedPermissions, true))
+                ->values()
+                ->all()
+        );
 
         Role::findByName('Manager')->syncPermissions([
-            'view_dashboard',
-            'view_property', 'create_property', 'edit_property',
-            'view_field_visit', 'create_field_visit', 'edit_field_visit',
-            'view_property_inquiry', 'create_property_inquiry', 'edit_property_inquiry',
-            'view_blog', 'create_blog', 'edit_blog',
+            'view_course_catalog', 'create_course_catalog', 'edit_course_catalog',
             'view_settings', 'edit_settings',
-            'view_settings_option',
+            'view_settings_menu',
+            'view_settings_profile',
         ]);
 
-        Role::findByName('Employee')->syncPermissions([
-            'view_dashboard',
-            'view_property',
-            'view_field_visit',
-            'view_property_inquiry',
-            'view_blog',
+        Role::findByName('User')->syncPermissions([
+            'view_course_catalog',
+            'view_settings_profile',
         ]);
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();

@@ -19,7 +19,7 @@ class RoleController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['view_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -44,7 +44,7 @@ class RoleController extends BaseController
 
     public function store(Request $request): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['create_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -82,7 +82,7 @@ class RoleController extends BaseController
 
     public function show(Request $request, Role $role): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['view_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -94,7 +94,7 @@ class RoleController extends BaseController
 
     public function update(Request $request, Role $role): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['edit_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 
@@ -139,7 +139,7 @@ class RoleController extends BaseController
 
     public function destroy(Request $request, Role $role): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['delete_roles', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 

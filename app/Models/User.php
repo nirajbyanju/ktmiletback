@@ -8,9 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
-use App\Models\UserDetail;
 
 class User extends Authenticatable
 {
@@ -25,6 +23,7 @@ class User extends Authenticatable
     protected $fillable = [
         'userCode',
         'usercode',
+        'name',
         'first_name',
         'middle_name',
         'last_name',
@@ -87,11 +86,6 @@ class User extends Authenticatable
     public function receivesBroadcastNotificationsOn(): string
     {
         return 'users.'.$this->id;
-    }
-
-    public function userDetail(): HasOne
-    {
-        return $this->hasOne(UserDetail::class);
     }
 
     public function sendPasswordResetNotification($token): void

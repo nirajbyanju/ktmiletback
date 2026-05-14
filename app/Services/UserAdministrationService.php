@@ -26,6 +26,7 @@ class UserAdministrationService
 
             $user = User::create([
                 'userCode' => $this->generateUserCode(),
+                'name' => trim($data['first_name'].' '.($data['middle_name'] ?? '').' '.$data['last_name']),
                 'first_name' => $data['first_name'],
                 'middle_name' => $data['middle_name'] ?? null,
                 'last_name' => $data['last_name'],
@@ -40,7 +41,6 @@ class UserAdministrationService
                 'email_verified_at' => ($data['email_verified'] ?? true) ? now() : null,
             ])->save();
 
-            $user->userDetail()->create($this->extractDetailData($data));
             $user->syncRoles($roles->pluck('name')->all());
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -53,7 +53,7 @@ class UserAdministrationService
                 }
             });
 
-            return $user->fresh(['roles', 'userDetail']);
+            return $user->fresh(['roles']);
         });
     }
 
@@ -71,22 +71,8 @@ class UserAdministrationService
                 RefreshToken::where('user_id', $targetUser->id)->delete();
             }
 
-            return $targetUser->fresh(['roles', 'userDetail']);
+            return $targetUser->fresh(['roles']);
         });
-    }
-
-    protected function extractDetailData(array $data): array
-    {
-        return array_intersect_key($data, array_flip([
-            'date_of_birth',
-            'bio',
-            'gender',
-            'country',
-            'state',
-            'district',
-            'local_bodies',
-            'street_name',
-        ]));
     }
 
     protected function resolveRoles(array $roleInputs): Collection

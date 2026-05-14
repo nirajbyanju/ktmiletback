@@ -13,7 +13,7 @@ class PermissionController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        if ($response = $this->authorizeAnyAbility($request, ['view_permissions', 'manage_all'])) {
+        if ($response = $this->authorizeSuperAdmin($request)) {
             return $response;
         }
 

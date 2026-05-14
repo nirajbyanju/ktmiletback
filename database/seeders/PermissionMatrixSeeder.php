@@ -13,53 +13,59 @@ class PermissionMatrixSeeder extends Seeder
 {
     public function run()
     {
-        // Define feature permissions for each role
+        PermissionMatrix::whereIn('feature_name', [
+            'dashboard',
+            'reports',
+            'products',
+            'orders',
+            'inventory',
+        ])->delete();
+
         $rolePermissions = [
             'Admin' => [
-                'dashboard' => ['view' => true],
-                'employees' => ['view'=>true,'create'=>true,'edit'=>true,'delete'=>true],
                 'menus' => ['view'=>true,'create'=>true,'edit'=>true,'delete'=>true],
-                'reports' => ['view'=>true,'export'=>true],
                 'settings' => ['view'=>true,'edit'=>true],
-                'products' => ['view'=>true,'create'=>true,'edit'=>true,'delete'=>true],
-                'orders' => ['view'=>true,'create'=>true,'edit'=>true,'approve'=>true],
-                'inventory' => ['view'=>true,'edit'=>true,'upload'=>true],
+                'course_catalog' => ['view'=>true,'create'=>true,'edit'=>true,'delete'=>true],
+                'invoices' => ['view'=>true,'create'=>true,'edit'=>true,'approve'=>true],
+                'enrollments' => ['view'=>true,'create'=>true,'edit'=>true],
             ],
             'Manager' => [
-                'dashboard'=>['view'=>true],
-                'employees'=>['view'=>true],
-                'reports'=>['view'=>true,'export'=>true],
-                'products'=>['view'=>true,'create'=>true,'edit'=>true],
-                'orders'=>['view'=>true,'create'=>true,'edit'=>true],
-                'inventory'=>['view'=>true,'edit'=>true],
+                'course_catalog'=>['view'=>true,'create'=>true,'edit'=>true],
+                'invoices'=>['view'=>true,'create'=>true,'edit'=>true],
+                'enrollments'=>['view'=>true,'create'=>true,'edit'=>true],
             ],
-            'Employee' => [
-                'dashboard'=>['view'=>true],
-                'products'=>['view'=>true],
-                'orders'=>['view'=>true,'create'=>true],
-                'inventory'=>['view'=>true],
+            'User' => [
+                'course_catalog'=>['view'=>true],
+                'enrollments'=>['view'=>true],
             ]
         ];
 
         foreach ($rolePermissions as $roleName => $features) {
             $role = Role::where('name', $roleName)->first();
 
-            foreach ($features as $feature => $perms) {
-                $matrix = PermissionMatrix::create([
-                    'feature_name' => $feature,
-                    'permission_key' => $feature.'_'.$role->id,
-                    'can_view' => $perms['view'] ?? false,
-                    'can_create' => $perms['create'] ?? false,
-                    'can_edit' => $perms['edit'] ?? false,
-                    'can_delete' => $perms['delete'] ?? false,
-                    'can_approve' => $perms['approve'] ?? false,
-                    'can_export' => $perms['export'] ?? false,
-                    'can_upload' => $perms['upload'] ?? false,
-                    'can_all' => $perms['all'] ?? false,
-                    'role_id' => $role->id,
-                ]);
+            if (! $role) {
+                continue;
+            }
 
-                // Assign Spatie permissions to role
+            foreach ($features as $feature => $perms) {
+                $matrix = PermissionMatrix::updateOrCreate(
+                    [
+                        'feature_name' => $feature,
+                        'role_id' => $role->id,
+                    ],
+                    [
+                        'permission_key' => $feature.'_'.$role->id,
+                        'can_view' => $perms['view'] ?? false,
+                        'can_create' => $perms['create'] ?? false,
+                        'can_edit' => $perms['edit'] ?? false,
+                        'can_delete' => $perms['delete'] ?? false,
+                        'can_approve' => $perms['approve'] ?? false,
+                        'can_export' => $perms['export'] ?? false,
+                        'can_upload' => $perms['upload'] ?? false,
+                        'can_all' => $perms['all'] ?? false,
+                    ]
+                );
+
                 $this->createSpatiePermissions($matrix, $role);
             }
         }

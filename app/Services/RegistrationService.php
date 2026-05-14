@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Models\UserDetail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -17,7 +16,7 @@ class RegistrationService
 
     public function registerUser(array $data): array
     {
-        return $this->register($data, 'Employee');
+        return $this->register($data, 'User');
     }
 
     public function registerAdmin(array $data): array
@@ -29,10 +28,6 @@ class RegistrationService
     {
         return DB::transaction(function () use ($data, $roleName) {
             $user = User::create($this->buildUserData($data));
-
-            UserDetail::create([
-                'user_id' => $user->id,
-            ]);
 
             $user->syncRoles([$roleName]);
             $user->load('roles');
@@ -59,6 +54,7 @@ class RegistrationService
 
         return [
             'userCode' => $this->generateUserCode(),
+            'name' => $data['name'],
             'first_name' => $firstName,
             'middle_name' => $middleName,
             'last_name' => $lastName,

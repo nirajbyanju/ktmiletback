@@ -116,16 +116,16 @@ class AuthController extends BaseController
             ], 403);
         }
 
-        if ($user->email_verified_at == null) {
-            Auth::logout();
-            return response()->json([
-                'data' => 'error',
-                'validationErrors' => [
-                    'email' => $request->email,
-                    'message' => 'email was not verify'
-                ],
-            ], 200);
-        }
+        // if ($user->email_verified_at == null) {
+        //     Auth::logout();
+        //     return response()->json([
+        //         'data' => 'error',
+        //         'validationErrors' => [
+        //             'email' => $request->email,
+        //             'message' => 'email was not verify'
+        //         ],
+        //     ], 200);
+        // }
 
         // Load relationships only when needed
         $user->load('roles');

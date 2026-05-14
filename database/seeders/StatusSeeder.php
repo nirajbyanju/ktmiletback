@@ -28,7 +28,10 @@ class StatusSeeder extends Seeder
         ];
 
         foreach ($status as $status) {
-            \App\Models\Data\BlogStatus::create($status);
+            \App\Models\Data\BlogStatus::updateOrCreate(
+                ['slug' => $status['slug']],
+                $status
+            );
         }
     }
 }
