@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Mail\WelcomeMail;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class RegistrationService
@@ -37,6 +39,13 @@ class RegistrationService
 
                 if ($freshUser) {
                     $this->adminNotificationService->notifyNewRegistration($freshUser);
+
+                    // Send welcome email (fail silently — never block registration)
+                    try {
+                        Mail::to($freshUser->email)->send(new WelcomeMail($freshUser));
+                    } catch (\Exception) {
+                        // log if needed
+                    }
                 }
             });
 

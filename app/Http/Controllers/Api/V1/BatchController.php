@@ -76,11 +76,11 @@ class BatchController extends Controller
 
     private function validated(Request $request, bool $isUpdate = false): array
     {
-        $required = $isUpdate ? 'sometimes|required' : 'required';
+        $required = $isUpdate ? ['sometimes', 'required'] : ['required'];
 
         return $request->validate([
-            'course_id' => [$required, 'integer', 'exists:courses,id'],
-            'batch_type' => [$required, 'string', 'max:50'],
+            'course_id' => [...$required, 'integer', 'exists:courses,id'],
+            'batch_type' => [...$required, 'string', 'max:50'],
             'min_size' => ['nullable', 'integer', 'min:0'],
             'max_size' => ['nullable', 'integer', 'min:0', 'gte:min_size'],
             'price_npr' => ['nullable', 'numeric', 'min:0'],

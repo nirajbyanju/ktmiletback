@@ -22,6 +22,10 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             StatusSeeder::class,
             CourseCatalogSeeder::class,
+            StudentSeeder::class,
+            EnrollmentInvoiceSeeder::class,
+            ExamBookingSeeder::class,
+            ContactMessageSeeder::class,
         ]);
     }
 }

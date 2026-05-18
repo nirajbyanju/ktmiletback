@@ -12,7 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('invoice_number')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('batch_id')->constrained('batches')->cascadeOnDelete();
+            $table->foreignId('batch_id')->constrained('batches')->cascadeOnDelete()->nullable();
+            $table->foreignId('mock_test_subscription_id')->constrained('mock_test_subscriptions')->cascadeOnDelete()->nullable();
+            $table->foreignId('exam_booking_enrollment_id')->constrained('exam_bookings_enrollments')->cascadeOnDelete()->nullable();
             $table->decimal('subtotal_npr', 10, 2);
             $table->decimal('discount_npr', 10, 2)->default(0);
             $table->decimal('tax_npr', 10, 2)->default(0);
@@ -27,11 +29,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::table('enrollments', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->after('id')->constrained('users')->nullOnDelete();
-            $table->foreignId('invoice_id')->nullable()->after('batch_id')->constrained('invoices')->nullOnDelete();
-            $table->string('status', 30)->default('active')->after('amount_paid');
-        });
     }
 
     public function down(): void

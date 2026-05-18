@@ -100,43 +100,7 @@ class RolePermissionSeeder extends Seeder
             ->all();
 
         Role::findByName('Super Admin')->syncPermissions(Permission::all());
-
-        $adminRestrictedPermissions = [
-            'view_employees',
-            'create_employees',
-            'edit_employees',
-            'delete_employees',
-            'view_roles',
-            'create_roles',
-            'edit_roles',
-            'delete_roles',
-            'view_permissions',
-            'edit_permissions',
-            'manage_all',
-            'view_access_control',
-            'create_access_control',
-            'edit_access_control',
-            'delete_access_control',
-            'approve_access_control',
-            'export_access_control',
-            'upload_access_control',
-            'manage_access_control',
-            'view_user_management',
-            'create_user_management',
-            'edit_user_management',
-            'delete_user_management',
-            'approve_user_management',
-            'export_user_management',
-            'upload_user_management',
-            'manage_user_management',
-        ];
-
-        Role::findByName('Admin')->syncPermissions(
-            collect($allPermissionNames)
-                ->reject(fn (string $permissionName) => in_array($permissionName, $adminRestrictedPermissions, true))
-                ->values()
-                ->all()
-        );
+        Role::findByName('Admin')->syncPermissions(Permission::all());
 
         Role::findByName('Manager')->syncPermissions([
             'view_course_catalog', 'create_course_catalog', 'edit_course_catalog',

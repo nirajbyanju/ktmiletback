@@ -195,15 +195,12 @@ class AuthController extends BaseController
             );
         }
 
-        if ($user->email_verified_at === null) {
-            $tokenModel->delete();
-
-            return $this->tokenErrorResponse(
-                'email_unverified',
-                'Email is not verified.',
-                403
-            );
-        }
+        // Email verification is not currently enforced at login, so keep consistent here.
+        // Uncomment the block below when email verification is re-enabled across both flows.
+        // if ($user->email_verified_at === null) {
+        //     $tokenModel->delete();
+        //     return $this->tokenErrorResponse('email_unverified', 'Email is not verified.', 403);
+        // }
 
         DB::beginTransaction();
 
@@ -416,17 +413,15 @@ class AuthController extends BaseController
 
             if (!$user) {
                 return response()->json([
-                    'success' => true,
-                    'status' => '201',
+                    'success' => false,
                     'message' => 'Invalid token or email.',
-                ], 201);
+                ], 422);
             }
             if ($user->email_verified_at) {
                 return response()->json([
                     'success' => true,
-                    'status' => '201',
                     'message' => 'Email already verified.',
-                ], 202);
+                ], 200);
             }
 
             // Update the user's email verification timestamp
@@ -491,7 +486,6 @@ class AuthController extends BaseController
                 'success' => false,
                 'status' => 500,
                 'message' => 'An unexpected error occurred.',
-                'error' => $e->getMessage() // Optional: useful for debugging
             ], 500);
         }
     }
@@ -563,12 +557,13 @@ class AuthController extends BaseController
             'token_type' => 'Bearer',
             'device_name' => $refreshToken->device_name,
             'user' => [
-                'id' => $user->id,
-                'firstName' => $user->first_name,
-                'lastName' => $user->last_name,
-                'userName' => $user->username,
-                'email' => $user->email,
-                'roles' => $user->roles->pluck('name'),
+                'id'           => $user->id,
+                'firstName'    => $user->first_name,
+                'lastName'     => $user->last_name,
+                'userName'     => $user->username,
+                'email'        => $user->email,
+                'has_password' => (bool) $user->has_password,
+                'roles'        => $user->roles->pluck('name'),
             ],
             'menus' => $this->userMenuService->getForUser($user),
         ];

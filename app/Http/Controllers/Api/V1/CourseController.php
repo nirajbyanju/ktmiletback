@@ -69,14 +69,14 @@ class CourseController extends Controller
 
     private function validated(Request $request, bool $isUpdate = false): array
     {
-        $required = $isUpdate ? 'sometimes|required' : 'required';
+        $required = $isUpdate ? ['sometimes', 'required'] : ['required'];
 
         return $request->validate([
-            'name' => [$required, 'string', 'max:100'],
-            'duration_weeks' => [$required, 'integer', 'min:1'],
-            'total_hours' => [$required, 'integer', 'min:1'],
-            'delivery_mode' => [$required, 'string', 'max:50'],
-            'instruction_lang' => [$required, 'string', 'max:50'],
+            'name' => [...$required, 'string', 'max:100'],
+            'duration_weeks' => [...$required, 'integer', 'min:1'],
+            'total_hours' => [...$required, 'integer', 'min:1'],
+            'delivery_mode' => [...$required, 'string', 'max:50'],
+            'instruction_lang' => [...$required, 'string', 'max:50'],
             'skills' => ['nullable', 'string'],
         ]);
     }

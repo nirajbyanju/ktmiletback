@@ -11,22 +11,37 @@ class Enrollment extends Model
     use HasFactory;
 
     protected $fillable = [
+        'lead_id',
         'student_name',
+        'phone',
+        'email',
         'user_id',
         'batch_id',
         'invoice_id',
         'enrollment_date',
         'amount_paid',
         'status',
+        'payment_status',
+        'crm_status',
+        'teacher',
+        'attendance_percentage',
+        'certificate_eligible',
+        'notes',
     ];
 
     protected $casts = [
-        'user_id' => 'integer',
-        'batch_id' => 'integer',
-        'invoice_id' => 'integer',
-        'enrollment_date' => 'date:Y-m-d',
-        'amount_paid' => 'decimal:2',
+        'lead_id'                => 'integer',
+        'user_id'                => 'integer',
+        'batch_id'               => 'integer',
+        'invoice_id'             => 'integer',
+        'enrollment_date'        => 'date:Y-m-d',
+        'amount_paid'            => 'decimal:2',
+        'attendance_percentage'  => 'decimal:2',
+        'certificate_eligible'   => 'boolean',
     ];
+
+    public const CRM_STATUSES   = ['lead', 'prospect', 'active', 'inactive', 'completed', 'dropped'];
+    public const PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'waived', 'refunded'];
 
     protected $attributes = [
         'enrollment_date' => null,

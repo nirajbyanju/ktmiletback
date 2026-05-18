@@ -31,6 +31,7 @@ class User extends Authenticatable
         'email',
         'phone',
         'password',
+        'has_password',
         'google_id',
         'status',
     ];
@@ -54,11 +55,12 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'has_password'      => 'boolean',
         ];
     }
 
-    public function setUsercodeAttribute($value): void
+    public function setUsercodeAttribute(mixed $value): void
     {
         $this->attributes['userCode'] = $value;
     }

@@ -14,12 +14,32 @@ return new class extends Migration
     {
         Schema::create('courses', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
-            $table->integer('duration_weeks');
-            $table->integer('total_hours');
-            $table->string('delivery_mode', 50);
-            $table->string('instruction_lang', 50);
-            $table->text('skills')->nullable();
+            $table->string('course_name', 100);
+            $table->text('description')->nullable();
+            $table->integer('duration')->nullable();
+            $table->string('duration_type')->nullable();
+            $table->string('delivery_mode')->nullable();
+            $table->enum('delivery', ['online', 'offline', 'hybrid']);
+
+            $table->json('support')->nullable();
+            $table->json('instruction')->nullable();
+            $table->json('schedule')->nullable();
+
+            // store extra features
+            $table->json('features')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('course_modules', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('course_id')->constrained()->cascadeOnDelete();
+
+            $table->integer('module_no'); // 1,2,3,4
+            $table->string('title');
+
+            $table->text('description')->nullable();
+
             $table->timestamps();
         });
 
@@ -38,36 +58,46 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('support_channels', function (Blueprint $table) {
+        Schema::create('batches', function (Blueprint $table) {
             $table->id();
-            $table->string('channel_type', 50);
-            $table->string('contact_value');
+
+            $table->foreignId('course_id')->constrained()->cascadeOnDelete();
+
+            $table->string('batch_name');
+
+            $table->integer('min_size')->nullable();
+            $table->integer('max_size')->nullable();
+
+            $table->decimal('price', 10, 2);
+            $table->decimal('discount', 10, 2)->default(0);
+
+            // morning / evening
+            $table->string('time_slot')->nullable();
+            $table->time('class_time')->nullable();
+
+            $table->boolean('is_active')->default(false);
+
             $table->timestamps();
         });
 
-        Schema::create('skills_modules', function (Blueprint $table) {
+        Schema::create('student_course_enrollments', function (Blueprint $table) {
             $table->id();
-            $table->string('skill_name', 50);
-            $table->text('topics_covered')->nullable();
-            $table->boolean('feedback_included')->default(false);
-            $table->timestamps();
-        });
 
-        Schema::create('additional_services', function (Blueprint $table) {
-            $table->id();
-            $table->string('service_name', 100);
-            $table->text('description')->nullable();
-            $table->boolean('is_add_on')->default(true);
-            $table->decimal('price_npr', 10, 2)->nullable();
-            $table->timestamps();
-        });
+            $table->foreignId('student_id')->constrained()->cascadeOnDelete();
 
-        Schema::create('enrollments', function (Blueprint $table) {
-            $table->id();
-            $table->string('student_name');
-            $table->foreignId('batch_id')->constrained('batches')->cascadeOnDelete();
-            $table->date('enrollment_date')->default(DB::raw('CURRENT_DATE'));
-            $table->decimal('amount_paid', 10, 2)->nullable();
+            $table->foreignId('course_id')->constrained()->cascadeOnDelete();
+
+            $table->foreignId('batch_id')->constrained()->cascadeOnDelete();
+
+            // joined from which module
+            $table->integer('join_module_no');
+
+            $table->timestamp('enrollment_date');
+            $table->timestamp('subscription_start');
+            $table->timestamp('subscription_end');
+
+            $table->boolean('is_completed')->default(false);
+
             $table->timestamps();
         });
     }

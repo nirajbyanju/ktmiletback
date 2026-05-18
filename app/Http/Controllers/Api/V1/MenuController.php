@@ -3,15 +3,15 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Api\V1\BaseController;
 use App\Http\Controllers\Api\V1\Concerns\AuthorizesRbacRequests;
 use App\Models\Menu;
 use App\Services\MenuPermissionService;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
-class MenuController extends Controller
+class MenuController extends BaseController
 {
     use AuthorizesRbacRequests;
 

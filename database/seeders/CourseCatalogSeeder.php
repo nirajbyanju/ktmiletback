@@ -68,30 +68,7 @@ class CourseCatalogSeeder extends Seeder
                 'is_price_variable' => false,
                 'schedule_notes' => 'Volume model with controlled quality messaging',
             ],
-            [
-                'batch_type' => 'Weekend Batch',
-                'min_size' => null,
-                'max_size' => null,
-                'price_npr' => null,
-                'is_price_variable' => true,
-                'schedule_notes' => 'For working and day-time learners',
-            ],
-            [
-                'batch_type' => 'Evening Batch',
-                'min_size' => null,
-                'max_size' => null,
-                'price_npr' => null,
-                'is_price_variable' => true,
-                'schedule_notes' => 'For office-going and busy learners',
-            ],
-            [
-                'batch_type' => 'Global Flex Batch',
-                'min_size' => null,
-                'max_size' => null,
-                'price_npr' => null,
-                'is_price_variable' => true,
-                'schedule_notes' => 'For students abroad across time zones',
-            ],
+    
         ];
 
         foreach ([$ieltsCourse, $pteCourse] as $course) {
