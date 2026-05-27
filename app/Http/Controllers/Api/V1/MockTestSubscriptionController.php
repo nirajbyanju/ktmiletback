@@ -6,50 +6,36 @@ use App\Http\Controllers\Controller;
 use App\Models\MockTestSubscription;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Validation\Rule;
 
 class MockTestSubscriptionController extends Controller
 {
-    // ── User: own subscriptions ───────────────────────────────────────────────
+    // ── Public: browse available plans ───────────────────────────────────────
 
     public function userIndex(Request $request)
     {
-        $subs = MockTestSubscription::where('user_id', $request->user()->id)
-            ->latest('id')
+        $plans = MockTestSubscription::latest('id')
             ->paginate($this->perPage($request));
 
-        return $this->paginated($subs, 'Your mock test subscriptions retrieved.');
+        return $this->paginated($plans, 'Available mock test plans retrieved.');
     }
 
-    public function show(Request $request, int $id)
+    public function show(int $id)
     {
-        $sub = MockTestSubscription::findOrFail($id);
+        $plan = MockTestSubscription::findOrFail($id);
 
-        if (!$this->canManageAll($request) && $sub->user_id !== $request->user()->id) {
-            abort(Response::HTTP_FORBIDDEN, 'You cannot access this subscription.');
-        }
-
-        return response()->json(['success' => true, 'message' => 'Subscription retrieved.', 'data' => $sub]);
+        return response()->json(['success' => true, 'message' => 'Plan retrieved.', 'data' => $plan]);
     }
 
-    // ── Admin: full management ────────────────────────────────────────────────
+    // ── Admin: plan management ────────────────────────────────────────────────
 
     public function adminStats(Request $request)
     {
         $this->authorizeManageAll($request);
 
-        $today = now()->toDateString();
-
         return response()->json([
             'success' => true,
-            'data' => [
-                'total'      => MockTestSubscription::count(),
-                'paid'       => MockTestSubscription::where('payment_status', 'paid')->count(),
-                'not_paid'   => MockTestSubscription::where('payment_status', 'not_paid')->count(),
-                'login_sent' => MockTestSubscription::where('login_sent', true)->count(),
-                'active'     => MockTestSubscription::whereNotNull('subscription_end')
-                    ->where('subscription_end', '>=', $today)
-                    ->count(),
+            'data'    => [
+                'total' => MockTestSubscription::count(),
             ],
         ]);
     }
@@ -58,44 +44,31 @@ class MockTestSubscriptionController extends Controller
     {
         $this->authorizeManageAll($request);
 
-        $query = MockTestSubscription::with('user:id,first_name,last_name,email,phone')
-            ->latest('id');
-
-        if ($request->filled('payment_status')) {
-            $query->where('payment_status', $request->payment_status);
-        }
-
-        if ($request->filled('login_sent')) {
-            $query->where('login_sent', filter_var($request->login_sent, FILTER_VALIDATE_BOOLEAN));
-        }
+        $query = MockTestSubscription::latest('id');
 
         if ($request->filled('search')) {
-            $search = '%' . $request->search . '%';
-            $query->where(function ($q) use ($search) {
-                $q->where('student_name', 'like', $search)
-                  ->orWhere('phone', 'like', $search)
-                  ->orWhere('login_email', 'like', $search)
-                  ->orWhere('subscription_id', 'like', $search)
-                  ->orWhere('lead_id', 'like', $search);
+            $s = '%' . $request->search . '%';
+            $query->where(function ($q) use ($s) {
+                $q->where('subscriptions_name', 'like', $s)
+                  ->orWhere('subscriptions_type', 'like', $s)
+                  ->orWhere('subscriptions_category', 'like', $s)
+                  ->orWhere('company_name', 'like', $s);
             });
         }
 
-        return $this->paginated(
-            $query->paginate($this->perPage($request)),
-            'Subscriptions retrieved successfully.'
-        );
+        return $this->paginated($query->paginate($this->perPage($request)), 'Plans retrieved.');
     }
 
     public function store(Request $request)
     {
         $this->authorizeManageAll($request);
 
-        $sub = MockTestSubscription::create($this->validatedFields($request));
+        $plan = MockTestSubscription::create($this->validated($request));
 
         return response()->json([
             'success' => true,
-            'message' => 'Mock test subscription created.',
-            'data'    => $sub,
+            'message' => 'Mock test plan created.',
+            'data'    => $plan,
         ], Response::HTTP_CREATED);
     }
 
@@ -103,14 +76,10 @@ class MockTestSubscriptionController extends Controller
     {
         $this->authorizeManageAll($request);
 
-        $sub = MockTestSubscription::findOrFail($id);
-        $sub->update($this->validatedFields($request, true));
+        $plan = MockTestSubscription::findOrFail($id);
+        $plan->update($this->validated($request, true));
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Subscription updated.',
-            'data'    => $sub->fresh('user:id,first_name,last_name,email,phone'),
-        ]);
+        return response()->json(['success' => true, 'message' => 'Plan updated.', 'data' => $plan->fresh()]);
     }
 
     public function destroy(Request $request, int $id)
@@ -118,31 +87,25 @@ class MockTestSubscriptionController extends Controller
         $this->authorizeManageAll($request);
         MockTestSubscription::findOrFail($id)->delete();
 
-        return response()->json(['success' => true, 'message' => 'Subscription deleted.']);
+        return response()->json(['success' => true, 'message' => 'Plan deleted.']);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private function validatedFields(Request $request, bool $isUpdate = false): array
+    private function validated(Request $request, bool $isUpdate = false): array
     {
-        $sometimes = $isUpdate ? 'sometimes|' : '';
+        $req = $isUpdate ? 'sometimes|required' : 'required';
 
         return $request->validate([
-            'lead_id'                 => 'nullable|string|max:30',
-            'student_name'            => $sometimes . 'required|string|max:255',
-            'phone'                   => 'nullable|string|max:20',
-            'course'                  => 'nullable|string|max:255',
-            'package'                 => 'nullable|string|max:255',
-            'price'                   => 'nullable|numeric|min:0',
-            'payment_status'          => ['nullable', Rule::in(MockTestSubscription::PAYMENT_STATUSES)],
-            'payment_screenshot_link' => 'nullable|string|max:2048',
-            'login_email'             => 'nullable|email|max:255',
-            'login_sent'              => 'nullable|boolean',
-            'subscription_start'      => 'nullable|date',
-            'subscription_end'        => 'nullable|date',
-            'platform'                => 'nullable|string|max:100',
-            'admin_notes'             => 'nullable|string|max:5000',
-            'user_id'                 => 'nullable|integer|exists:users,id',
+            'subscriptions_name'     => "$req|string|max:255",
+            'subscriptions_type'     => "$req|string|max:100",
+            'subscriptions_category' => "$req|string|max:100",
+            'company_name'           => "$req|string|max:255",
+            'country'                => "$req|string|max:100",
+            'price'                  => 'nullable|numeric|min:0',
+            'discount'               => 'nullable|numeric|min:0',
+            'duration'               => "$req|integer|min:1",
+            'duration_type'          => "$req|string|max:50",
         ]);
     }
 

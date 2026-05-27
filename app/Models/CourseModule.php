@@ -7,35 +7,30 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Teacher extends Model
+class CourseModule extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id',
-        'teacher_id',
-        'name',
-        'course',
-        'phone',
-        'email',
-        'available_time',
-        'status',
-        'notes',
-        'profile_photo',
+        'course_id',
+        'module_no',
+        'title',
+        'description',
         'created_by',
         'updated_by',
         'deleted_by',
     ];
 
     protected $casts = [
-        'user_id'    => 'integer',
+        'module_no'  => 'integer',
+        'course_id'  => 'integer',
         'created_by' => 'integer',
         'updated_by' => 'integer',
         'deleted_by' => 'integer',
     ];
 
-    public function user(): BelongsTo
+    public function course(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Course::class);
     }
 }

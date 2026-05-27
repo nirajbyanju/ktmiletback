@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Requests\UpdateProfilePictureRequest;
 use App\Http\Requests\UpdateUserProfileRequest;
 use App\Services\UserProfileService;
 use Illuminate\Http\JsonResponse;
@@ -78,6 +79,27 @@ class UserProfileController extends BaseController
         return response()->json([
             'success' => true,
             'message' => 'Password changed successfully.',
+        ]);
+    }
+
+    public function uploadProfilePicture(UpdateProfilePictureRequest $request): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile picture updated.',
+            'data'    => $this->userProfileService->uploadProfilePicture(
+                $request->user(),
+                $request->file('profile_picture')
+            ),
+        ]);
+    }
+
+    public function deleteProfilePicture(Request $request): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile picture removed.',
+            'data'    => $this->userProfileService->deleteProfilePicture($request->user()),
         ]);
     }
 }

@@ -14,6 +14,7 @@ use App\Http\Controllers\MenusController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\CourseCatalogController;
 use App\Http\Controllers\Api\V1\CourseController;
+use App\Http\Controllers\Api\V1\CourseModuleController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\AdditionalServiceController;
 use App\Http\Controllers\Api\V1\SupportChannelController;
@@ -24,6 +25,8 @@ use App\Http\Controllers\Api\V1\ContactMessageController;
 use App\Http\Controllers\Api\V1\GoogleAuthController;
 use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\MockTestSubscriptionController;
+use App\Http\Controllers\Api\V1\MockTestEnrollmentController;
+use App\Http\Controllers\Api\V1\TestimonialController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,7 +43,6 @@ Route::prefix('v1')->group(function () {
     // ==================== PUBLIC ROUTES ====================
     Route::prefix('public')->as('public.')->group(function () {
 
-
         // Authentication routes
         Route::prefix('auth')->as('auth.')->group(function () {
             Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1')->name('register');
@@ -54,11 +56,17 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/course-catalog', [CourseCatalogController::class, 'index'])->name('course-catalog.index');
         Route::get('/course-catalog/{course}', [CourseCatalogController::class, 'show'])->name('course-catalog.show');
+        Route::get('/exam-booking-plans', [ExamBookingController::class, 'userPlanIndex'])->name('public.exam-booking-plans.index');
+
+        // Mock test subscription plans — public listing, no auth required
+        Route::get('/mock-test-subscriptions', [MockTestSubscriptionController::class, 'userIndex'])->name('public.mock-test-subscriptions.index');
+        Route::get('/mock-test-subscriptions/{id}', [MockTestSubscriptionController::class, 'show'])->name('public.mock-test-subscriptions.show');
 
         // Contact form — public, no auth
         Route::post('/contact', [ContactMessageController::class, 'store'])->middleware('throttle:10,1')->name('contact.store');
 
-
+        // Testimonials — public listing
+        Route::get('/testimonials', [TestimonialController::class, 'publicIndex'])->name('testimonials.public');
     });
 
     // ==================== AUTHENTICATED ROUTES ====================
@@ -69,6 +77,8 @@ Route::prefix('v1')->group(function () {
         Route::match(['put', 'patch'], '/user', [UserProfileController::class, 'update'])->name('user.update');
         Route::post('/user/change-password', [UserProfileController::class, 'changePassword'])->name('user.change-password');
         Route::post('/user/set-password', [UserProfileController::class, 'setPassword'])->name('user.set-password');
+        Route::post('/user/profile-picture', [UserProfileController::class, 'uploadProfilePicture'])->name('user.profile-picture.upload');
+        Route::delete('/user/profile-picture', [UserProfileController::class, 'deleteProfilePicture'])->name('user.profile-picture.delete');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
         Route::prefix('notifications')->as('notifications.')->group(function () {
@@ -120,27 +130,43 @@ Route::prefix('v1')->group(function () {
             Route::get('/role/{roleId}/employees', [EmployeePermissionController::class, 'getEmployeesByRole'])->name('role.employees');
         });
 
-        // ==================== OPTIONS MANAGEMENT ====================
-       
-       
-
-       
-
-        // ==================== BLOG MANAGEMENT ====================
-      
-          Route::apiResource('courses', CourseController::class);
+        // ==================== COURSES & BATCHES ====================
+        Route::apiResource('courses', CourseController::class);
         Route::apiResource('batches', BatchController::class);
-        Route::apiResource('teachers', TeacherController::class);
+
+        // Course modules (nested under courses)
+        Route::get('courses/{courseId}/modules', [CourseModuleController::class, 'index'])->name('courses.modules.index');
+        Route::post('courses/{courseId}/modules', [CourseModuleController::class, 'store'])->name('courses.modules.store');
+        Route::put('courses/{courseId}/modules/{id}', [CourseModuleController::class, 'update'])->name('courses.modules.update');
+        Route::delete('courses/{courseId}/modules/{id}', [CourseModuleController::class, 'destroy'])->name('courses.modules.destroy');
+
+        // Legacy support — keep old endpoints alive for backwards compat
         Route::apiResource('support-channels', SupportChannelController::class);
         Route::apiResource('skills-modules', SkillModuleController::class);
         Route::apiResource('additional-services', AdditionalServiceController::class);
+
+        // ==================== TEACHERS ====================
+        Route::apiResource('teachers', TeacherController::class);
+
+        // Teacher self-service (requires Teacher role)
+        Route::prefix('teacher')->as('teacher.')->group(function () {
+            Route::get('/profile', [TeacherController::class, 'myProfile'])->name('profile');
+            Route::patch('/profile', [TeacherController::class, 'updateMyProfile'])->name('profile.update');
+            Route::post('/profile/photo', [TeacherController::class, 'uploadPhoto'])->name('profile.photo.upload');
+            Route::delete('/profile/photo', [TeacherController::class, 'deletePhoto'])->name('profile.photo.delete');
+        });
+
+        // ==================== ENROLLMENTS (course) ====================
         Route::apiResource('enrollments', EnrollmentController::class);
-        // Admin student management
-        Route::get('admin/enrollments/stats',     [EnrollmentController::class, 'adminStats'])->name('admin.enrollments.stats');
-        Route::get('admin/enrollments',           [EnrollmentController::class, 'adminIndex'])->name('admin.enrollments.index');
+        Route::get('admin/enrollments/stats', [EnrollmentController::class, 'adminStats'])->name('admin.enrollments.stats');
+        Route::get('admin/enrollments', [EnrollmentController::class, 'adminIndex'])->name('admin.enrollments.index');
         Route::patch('admin/enrollments/{enrollment}', [EnrollmentController::class, 'adminUpdate'])->name('admin.enrollments.update');
+
+        // ==================== INVOICES ====================
         Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        Route::post('invoices/mock-test', [InvoiceController::class, 'storeForMockTest'])->name('invoices.mock-test.store');
+        Route::post('invoices/exam-booking', [InvoiceController::class, 'storeForExam'])->name('invoices.exam.store');
         Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
         Route::patch('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
 
@@ -150,31 +176,51 @@ Route::prefix('v1')->group(function () {
         Route::get('admin/contact-messages/{contactMessage}', [ContactMessageController::class, 'show'])->name('admin.contact-messages.show');
         Route::patch('admin/contact-messages/{contactMessage}/status', [ContactMessageController::class, 'updateStatus'])->name('admin.contact-messages.status');
 
-        // ==================== EXAM BOOKINGS ====================
+        // ==================== EXAM BOOKING PLANS (admin CRUD) ====================
+        Route::get('exam-booking-plans', [ExamBookingController::class, 'userPlanIndex'])->name('exam-booking-plans.index');
+        Route::get('admin/exam-booking-plans', [ExamBookingController::class, 'adminPlanIndex'])->name('admin.exam-booking-plans.index');
+        Route::post('admin/exam-booking-plans', [ExamBookingController::class, 'adminPlanStore'])->name('admin.exam-booking-plans.store');
+        Route::patch('admin/exam-booking-plans/{id}', [ExamBookingController::class, 'adminPlanUpdate'])->name('admin.exam-booking-plans.update');
+        Route::delete('admin/exam-booking-plans/{id}', [ExamBookingController::class, 'adminPlanDestroy'])->name('admin.exam-booking-plans.destroy');
+
+        // ==================== EXAM BOOKING ENROLLMENTS ====================
         Route::get('exam-bookings', [ExamBookingController::class, 'userIndex'])->name('exam-bookings.user-index');
         Route::post('exam-bookings', [ExamBookingController::class, 'store'])->name('exam-bookings.store');
-        Route::get('exam-bookings/{examBooking}', [ExamBookingController::class, 'show'])->name('exam-bookings.show');
-        Route::get('exam-bookings/{examBooking}/passport', [ExamBookingController::class, 'downloadPassport'])->name('exam-bookings.passport');
+        Route::get('exam-bookings/{id}/passport', [ExamBookingController::class, 'downloadPassport'])->name('exam-bookings.passport');
         Route::get('admin/exam-bookings/stats', [ExamBookingController::class, 'adminStats'])->name('admin.exam-bookings.stats');
         Route::get('admin/exam-bookings', [ExamBookingController::class, 'adminIndex'])->name('admin.exam-bookings.index');
-        Route::get('admin/exam-bookings/{examBooking}', [ExamBookingController::class, 'adminShow'])->name('admin.exam-bookings.show');
-        Route::patch('admin/exam-bookings/{examBooking}', [ExamBookingController::class, 'adminUpdate'])->name('admin.exam-bookings.update');
-        Route::patch('admin/exam-bookings/{examBooking}/status', [ExamBookingController::class, 'updateStatus'])->name('admin.exam-bookings.status');
-
-
+        Route::get('admin/exam-bookings/{id}', [ExamBookingController::class, 'adminShow'])->name('admin.exam-bookings.show');
+        Route::patch('admin/exam-bookings/{id}', [ExamBookingController::class, 'adminUpdate'])->name('admin.exam-bookings.update');
+        Route::delete('admin/exam-bookings/{id}', [ExamBookingController::class, 'adminDestroy'])->name('admin.exam-bookings.destroy');
 
         // ==================== MOCK TEST SUBSCRIPTIONS ====================
-        Route::get('mock-test-subscriptions',                    [MockTestSubscriptionController::class, 'userIndex'])->name('mock-test-subscriptions.user-index');
-        Route::get('mock-test-subscriptions/{id}',               [MockTestSubscriptionController::class, 'show'])->name('mock-test-subscriptions.show');
-        Route::get('admin/mock-test-subscriptions/stats',        [MockTestSubscriptionController::class, 'adminStats'])->name('admin.mock-test-subscriptions.stats');
-        Route::get('admin/mock-test-subscriptions',              [MockTestSubscriptionController::class, 'adminIndex'])->name('admin.mock-test-subscriptions.index');
-        Route::post('admin/mock-test-subscriptions',             [MockTestSubscriptionController::class, 'store'])->name('admin.mock-test-subscriptions.store');
-        Route::patch('admin/mock-test-subscriptions/{id}',       [MockTestSubscriptionController::class, 'adminUpdate'])->name('admin.mock-test-subscriptions.update');
-        Route::delete('admin/mock-test-subscriptions/{id}',      [MockTestSubscriptionController::class, 'destroy'])->name('admin.mock-test-subscriptions.destroy');
+        Route::get('mock-test-subscriptions', [MockTestSubscriptionController::class, 'userIndex'])->name('mock-test-subscriptions.user-index');
+        Route::get('mock-test-subscriptions/{id}', [MockTestSubscriptionController::class, 'show'])->name('mock-test-subscriptions.show');
+        Route::get('admin/mock-test-subscriptions/stats', [MockTestSubscriptionController::class, 'adminStats'])->name('admin.mock-test-subscriptions.stats');
+        Route::get('admin/mock-test-subscriptions', [MockTestSubscriptionController::class, 'adminIndex'])->name('admin.mock-test-subscriptions.index');
+        Route::post('admin/mock-test-subscriptions', [MockTestSubscriptionController::class, 'store'])->name('admin.mock-test-subscriptions.store');
+        Route::patch('admin/mock-test-subscriptions/{id}', [MockTestSubscriptionController::class, 'adminUpdate'])->name('admin.mock-test-subscriptions.update');
+        Route::delete('admin/mock-test-subscriptions/{id}', [MockTestSubscriptionController::class, 'destroy'])->name('admin.mock-test-subscriptions.destroy');
+
+        // ==================== TESTIMONIALS ====================
+        Route::get('admin/testimonials', [TestimonialController::class, 'index'])->name('admin.testimonials.index');
+        Route::post('admin/testimonials', [TestimonialController::class, 'store'])->name('admin.testimonials.store');
+        Route::get('admin/testimonials/{id}', [TestimonialController::class, 'show'])->name('admin.testimonials.show');
+        Route::put('admin/testimonials/{id}', [TestimonialController::class, 'update'])->name('admin.testimonials.update');
+        Route::delete('admin/testimonials/{id}', [TestimonialController::class, 'destroy'])->name('admin.testimonials.destroy');
+        Route::post('admin/testimonials/{id}/photo', [TestimonialController::class, 'uploadPhoto'])->name('admin.testimonials.photo.upload');
+        Route::delete('admin/testimonials/{id}/photo', [TestimonialController::class, 'deletePhoto'])->name('admin.testimonials.photo.delete');
+
+        // ==================== MOCK TEST ENROLLMENTS ====================
+        Route::get('mock-test-enrollments', [MockTestEnrollmentController::class, 'userIndex'])->name('mock-test-enrollments.user-index');
+        Route::get('mock-test-enrollments/{id}', [MockTestEnrollmentController::class, 'show'])->name('mock-test-enrollments.show');
+        Route::get('admin/mock-test-enrollments/stats', [MockTestEnrollmentController::class, 'adminStats'])->name('admin.mock-test-enrollments.stats');
+        Route::get('admin/mock-test-enrollments', [MockTestEnrollmentController::class, 'adminIndex'])->name('admin.mock-test-enrollments.index');
+        Route::post('admin/mock-test-enrollments', [MockTestEnrollmentController::class, 'store'])->name('admin.mock-test-enrollments.store');
+        Route::patch('admin/mock-test-enrollments/{id}', [MockTestEnrollmentController::class, 'adminUpdate'])->name('admin.mock-test-enrollments.update');
+        Route::delete('admin/mock-test-enrollments/{id}', [MockTestEnrollmentController::class, 'destroy'])->name('admin.mock-test-enrollments.destroy');
 
         // User menu
         Route::get('/user/menu', [MenusController::class, 'getMenu'])->name('user.menu');
     });
-
-    
 });

@@ -12,9 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('invoice_number')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('batch_id')->constrained('batches')->cascadeOnDelete()->nullable();
-            $table->foreignId('mock_test_subscription_id')->constrained('mock_test_subscriptions')->cascadeOnDelete()->nullable();
-            $table->foreignId('exam_booking_enrollment_id')->constrained('exam_bookings_enrollments')->cascadeOnDelete()->nullable();
+            $table->foreignId('batch_id')->nullable()->constrained('batches')->nullOnDelete();
+            $table->unsignedBigInteger('mock_test_subscription_id')->nullable();
+            $table->unsignedBigInteger('exam_booking_enrollment_id')->nullable();
             $table->decimal('subtotal_npr', 10, 2);
             $table->decimal('discount_npr', 10, 2)->default(0);
             $table->decimal('tax_npr', 10, 2)->default(0);
@@ -26,7 +26,9 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable();
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
+            $table->userAuditable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
     }

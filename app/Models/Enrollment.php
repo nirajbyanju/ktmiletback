@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Enrollment extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'lead_id',
@@ -27,17 +28,23 @@ class Enrollment extends Model
         'attendance_percentage',
         'certificate_eligible',
         'notes',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
-        'lead_id'                => 'integer',
-        'user_id'                => 'integer',
-        'batch_id'               => 'integer',
-        'invoice_id'             => 'integer',
-        'enrollment_date'        => 'date:Y-m-d',
-        'amount_paid'            => 'decimal:2',
-        'attendance_percentage'  => 'decimal:2',
-        'certificate_eligible'   => 'boolean',
+        'lead_id'               => 'integer',
+        'user_id'               => 'integer',
+        'batch_id'              => 'integer',
+        'invoice_id'            => 'integer',
+        'enrollment_date'       => 'date:Y-m-d',
+        'amount_paid'           => 'decimal:2',
+        'attendance_percentage' => 'decimal:2',
+        'certificate_eligible'  => 'boolean',
+        'created_by'            => 'integer',
+        'updated_by'            => 'integer',
+        'deleted_by'            => 'integer',
     ];
 
     public const CRM_STATUSES   = ['lead', 'prospect', 'active', 'inactive', 'completed', 'dropped'];

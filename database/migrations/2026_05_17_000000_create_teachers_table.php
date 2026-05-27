@@ -15,7 +15,9 @@ return new class extends Migration
             $table->string('available_time', 50);
             $table->string('status', 20)->default('Active');
             $table->text('notes')->nullable();
+            $table->userAuditable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -18,15 +18,20 @@ class GoogleAuthController extends BaseController
 
     public function redirect()
     {
-        return Socialite::driver('google')->stateless()->redirect();
+        /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
+        $provider = Socialite::driver('google');
+        return $provider->stateless()->redirect();
     }
 
     public function callback()
     {
-        $frontendUrl = rtrim(env('FRONTEND_URL', 'http://127.0.0.1:3000'), '/');
+        $frontendUrl = rtrim(env('FRONTEND_URL'), '/');
+
+        /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
+        $provider = Socialite::driver('google');
 
         try {
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            $googleUser = $provider->stateless()->user();
         } catch (\Exception) {
             return redirect("$frontendUrl/login?error=google_auth_failed");
         }
@@ -34,8 +39,6 @@ class GoogleAuthController extends BaseController
         // Find existing user by google_id first, then fall back to email
         $user = User::where('google_id', $googleUser->getId())->first()
             ?? User::where('email', $googleUser->getEmail())->first();
-
-        $needsPassword = false;
 
         if (!$user) {
             // New user — create from Google profile
@@ -61,13 +64,11 @@ class GoogleAuthController extends BaseController
             ]);
 
             $user->assignRole('User');
-            $needsPassword = true;
         } else {
             // Existing user — link google_id if not yet set
             if (!$user->google_id) {
                 $user->update(['google_id' => $googleUser->getId()]);
             }
-            $needsPassword = !$user->has_password;
         }
 
         $user->load('roles');
@@ -93,7 +94,7 @@ class GoogleAuthController extends BaseController
             'access_token_expires_at'  => $accessTokenExpiresAt->toISOString(),
             'refresh_token_expires_at' => $refreshToken->expires_at?->toISOString(),
             'token_type'               => 'Bearer',
-            'needs_password'           => $needsPassword,
+            'needs_password'           => !$user->has_password,
             'user' => [
                 'id'           => $user->id,
                 'firstName'    => $user->first_name,

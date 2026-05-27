@@ -15,7 +15,7 @@ class EnrollmentController extends Controller
     public function index(Request $request)
     {
         $query = Enrollment::with([
-            'batch.course:id,name',
+            'batch.course:id,course_name',
             'invoice:id,invoice_number,status,total_npr',
         ]);
 
@@ -39,7 +39,7 @@ class EnrollmentController extends Controller
 
     public function show(Request $request, int $id)
     {
-        $enrollment = Enrollment::with('batch.course:id,name')->findOrFail($id);
+        $enrollment = Enrollment::with('batch.course:id,course_name')->findOrFail($id);
 
         if (!$this->canManageAll($request) && $enrollment->user_id !== $request->user()->id) {
             abort(Response::HTTP_FORBIDDEN, 'You cannot access this enrollment.');
@@ -57,7 +57,7 @@ class EnrollmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Enrollment created successfully.',
-            'data'    => $enrollment->load('batch.course:id,name'),
+            'data'    => $enrollment->load('batch.course:id,course_name'),
         ], Response::HTTP_CREATED);
     }
 
@@ -71,7 +71,7 @@ class EnrollmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Enrollment updated successfully.',
-            'data'    => $enrollment->fresh('batch.course:id,name'),
+            'data'    => $enrollment->fresh('batch.course:id,course_name'),
         ]);
     }
 
@@ -108,7 +108,7 @@ class EnrollmentController extends Controller
         $query = Enrollment::with([
             'user:id,first_name,last_name,email,phone',
             'batch:id,course_id,batch_type,class_time,is_active',
-            'batch.course:id,name',
+            'batch.course:id,course_name',
             'invoice:id,invoice_number,status,total_npr',
         ])->latest('id');
 
@@ -166,7 +166,7 @@ class EnrollmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Student record updated.',
-            'data'    => $enrollment->fresh(['user:id,first_name,last_name,email,phone', 'batch.course:id,name']),
+            'data'    => $enrollment->fresh(['user:id,first_name,last_name,email,phone', 'batch.course:id,course_name']),
         ]);
     }
 

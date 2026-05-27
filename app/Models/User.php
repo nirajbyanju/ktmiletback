@@ -85,6 +85,11 @@ class User extends Authenticatable
         return $this->username ?: $this->email;
     }
 
+    public function userDetail(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(UserDetail::class);
+    }
+
     public function receivesBroadcastNotificationsOn(): string
     {
         return 'users.'.$this->id;

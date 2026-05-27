@@ -4,66 +4,47 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MockTestSubscription extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'subscription_id',
-        'lead_id',
-        'student_name',
-        'phone',
-        'course',
-        'package',
+        'subscriptions_name',
+        'subscriptions_type',
+        'subscriptions_category',
+        'company_name',
+        'country',
         'price',
-        'payment_status',
-        'payment_screenshot_link',
-        'login_email',
-        'login_sent',
-        'subscription_start',
-        'subscription_end',
-        'platform',
-        'admin_notes',
-        'user_id',
+        'discount',
+        'duration',
+        'duration_type',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
-        'price'              => 'decimal:2',
-        'login_sent'         => 'boolean',
-        'subscription_start' => 'date:Y-m-d',
-        'subscription_end'   => 'date:Y-m-d',
-        'user_id'            => 'integer',
+        'price'    => 'decimal:2',
+        'discount' => 'decimal:2',
+        'duration' => 'integer',
     ];
 
-    public const PAYMENT_STATUSES = ['not_paid', 'partial', 'paid', 'waived', 'refunded'];
-
-    protected static function booted(): void
+    public function enrollments(): HasMany
     {
-        static::creating(function (MockTestSubscription $sub) {
-            if (empty($sub->subscription_id)) {
-                $sub->subscription_id = static::generateSubscriptionId();
-            }
-        });
+        return $this->hasMany(MockTestEnrollment::class, 'subscription_id');
     }
 
-    private static function generateSubscriptionId(): string
+    public function latestEnrollment(): HasOne
     {
-        $date   = now()->format('Ymd');
-        $prefix = "MOCK-{$date}-";
-
-        $last = static::where('subscription_id', 'like', $prefix . '%')
-            ->orderByDesc('subscription_id')
-            ->value('subscription_id');
-
-        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
-
-        return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        return $this->hasOne(MockTestEnrollment::class, 'subscription_id')->latestOfMany();
     }
 
-    public function user(): BelongsTo
+    public function invoices(): HasMany
     {
-        return $this->belongsTo(User::class);
+        return $this->hasMany(Invoice::class, 'mock_test_subscription_id');
     }
 }

@@ -47,7 +47,7 @@ class EnrollmentInvoiceSeeder extends Seeder
                     'discount_npr'   => $discount,
                     'tax_npr'        => 0,
                     'total_npr'      => $total,
-                    'status'         => $isPaid ? 'paid' : 'pending',
+                    'status'         => $isPaid ? Invoice::STATUS_PAID : Invoice::STATUS_UNPAID,
                     'payment_method' => $paymentMethods[array_rand($paymentMethods)],
                     'invoice_date'   => $invoiceDate->toDateString(),
                     'due_date'       => $dueDate->toDateString(),
@@ -60,7 +60,7 @@ class EnrollmentInvoiceSeeder extends Seeder
             Enrollment::updateOrCreate(
                 ['user_id' => $student->id, 'batch_id' => $batch->id],
                 [
-                    'student_name'           => $student->display_name,
+                    'student_name'           => $student->name,
                     'phone'                  => $student->phone,
                     'email'                  => $student->email,
                     'invoice_id'             => $invoice->id,

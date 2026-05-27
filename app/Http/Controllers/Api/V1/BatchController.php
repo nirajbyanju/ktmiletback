@@ -11,7 +11,7 @@ class BatchController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Batch::with('course:id,name');
+        $query = Batch::with('course:id,course_name');
 
         if ($request->filled('course_id')) {
             $query->where('course_id', $request->integer('course_id'));
@@ -21,7 +21,7 @@ class BatchController extends Controller
             $search = $request->string('search');
             $query->where(function ($builder) use ($search) {
                 $builder->where('batch_type', 'LIKE', "%{$search}%")
-                    ->orWhereHas('course', fn ($courseQuery) => $courseQuery->where('name', 'LIKE', "%{$search}%"));
+                    ->orWhereHas('course', fn ($q) => $q->where('course_name', 'LIKE', "%{$search}%"));
             });
         }
 
@@ -37,18 +37,18 @@ class BatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Batch created successfully.',
-            'data' => $batch->load('course:id,name'),
+            'data'    => $batch->load('course:id,course_name'),
         ], Response::HTTP_CREATED);
     }
 
     public function show(int $id)
     {
-        $batch = Batch::with(['course:id,name', 'enrollments'])->findOrFail($id);
+        $batch = Batch::with(['course:id,course_name', 'enrollments'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
             'message' => 'Batch retrieved successfully.',
-            'data' => $batch,
+            'data'    => $batch,
         ]);
     }
 
@@ -60,7 +60,7 @@ class BatchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Batch updated successfully.',
-            'data' => $batch->fresh('course:id,name'),
+            'data'    => $batch->fresh('course:id,course_name'),
         ]);
     }
 
@@ -79,23 +79,24 @@ class BatchController extends Controller
         $required = $isUpdate ? ['sometimes', 'required'] : ['required'];
 
         return $request->validate([
-            'course_id' => [...$required, 'integer', 'exists:courses,id'],
-            'batch_type' => [...$required, 'string', 'max:50'],
-            'min_size' => ['nullable', 'integer', 'min:0'],
-            'max_size' => ['nullable', 'integer', 'min:0', 'gte:min_size'],
-            'price_npr' => ['nullable', 'numeric', 'min:0'],
-            'offer_label' => ['nullable', 'string', 'max:100'],
-            'discount_type' => ['nullable', 'string', 'in:percent,fixed'],
-            'discount_value' => ['nullable', 'numeric', 'min:0'],
-            'offer_starts_at' => ['nullable', 'date'],
-            'offer_ends_at' => ['nullable', 'date', 'after_or_equal:offer_starts_at'],
+            'course_id'        => [...$required, 'integer', 'exists:courses,id'],
+            'batch_type'       => [...$required, 'string', 'max:80'],
+            'min_size'         => ['nullable', 'integer', 'min:0'],
+            'max_size'         => ['nullable', 'integer', 'min:0', 'gte:min_size'],
+            'price_npr'        => ['nullable', 'numeric', 'min:0'],
+            'offer_label'      => ['nullable', 'string', 'max:100'],
+            'discount_type'    => ['nullable', 'string', 'in:percent,fixed'],
+            'discount_value'   => ['nullable', 'numeric', 'min:0'],
+            'offer_starts_at'  => ['nullable', 'date'],
+            'offer_ends_at'    => ['nullable', 'date', 'after_or_equal:offer_starts_at'],
             'is_price_variable' => ['sometimes', 'boolean'],
-            'schedule_notes' => ['nullable', 'string'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'class_time' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
-            'class_link' => ['nullable', 'url'],
-            'is_active' => ['sometimes', 'boolean'],
+            'schedule_notes'   => ['nullable', 'string'],
+            'start_date'       => ['nullable', 'date'],
+            'end_date'         => ['nullable', 'date', 'after_or_equal:start_date'],
+            'class_time'       => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            'class_link'       => ['nullable', 'url'],
+            'is_active'        => ['sometimes', 'boolean'],
+            'teacher_id'       => ['nullable', 'integer', 'exists:teachers,id'],
         ]);
     }
 
@@ -104,17 +105,17 @@ class BatchController extends Controller
         return min(max((int) $request->query('limit', 10), 1), 100);
     }
 
-    private function paginated($paginator, string $message)
+    private function paginated(\Illuminate\Pagination\LengthAwarePaginator $paginator, string $message)
     {
         return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => $paginator->items(),
+            'success'    => true,
+            'message'    => $message,
+            'data'       => $paginator->items(),
             'pagination' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'per_page'     => $paginator->perPage(),
                 'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
+                'last_page'    => $paginator->lastPage(),
             ],
         ]);
     }

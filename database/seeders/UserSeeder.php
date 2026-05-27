@@ -22,8 +22,9 @@ class UserSeeder extends Seeder
             'username' => 'nirajbyanju',
             'email_verified_at' => now(),
             'phone' => '+9779800000000',
-            'password' => Hash::make('password'),
-            'status' => 1,
+            'password'     => Hash::make('password'),
+            'has_password' => true,
+            'status'       => 1,
             'remember_token' => Str::random(10),
         ]);
         $admin->syncRoles(['Super Admin']);
@@ -31,16 +32,17 @@ class UserSeeder extends Seeder
         $manager = User::updateOrCreate([
             'email' => 'manager@example.com',
         ], [
-            'userCode' => 'SM-2026-2',
-            'name' => 'Manager User',
-            'first_name' => 'Manager',
-            'middle_name' => null,
-            'last_name' => 'User',
-            'username' => 'manageruser',
+            'userCode'     => 'SM-2026-2',
+            'name'         => 'Manager User',
+            'first_name'   => 'Manager',
+            'middle_name'  => null,
+            'last_name'    => 'User',
+            'username'     => 'manageruser',
             'email_verified_at' => now(),
-            'phone' => '+9779800000001',
-            'password' => Hash::make('password'),
-            'status' => 1,
+            'phone'        => '+9779800000001',
+            'password'     => Hash::make('password'),
+            'has_password' => true,
+            'status'       => 1,
             'remember_token' => Str::random(10),
         ]);
         $manager->syncRoles(['Manager']);
@@ -48,16 +50,17 @@ class UserSeeder extends Seeder
         $employee = User::updateOrCreate([
             'email' => 'employee@example.com',
         ], [
-            'userCode' => 'SM-2026-3',
-            'name' => 'Employee User',
-            'first_name' => 'Employee',
-            'middle_name' => null,
-            'last_name' => 'User',
-            'username' => 'employeeuser',
+            'userCode'     => 'SM-2026-3',
+            'name'         => 'Employee User',
+            'first_name'   => 'Employee',
+            'middle_name'  => null,
+            'last_name'    => 'User',
+            'username'     => 'employeeuser',
             'email_verified_at' => now(),
-            'phone' => '+9779800000002',
-            'password' => Hash::make('password'),
-            'status' => 1,
+            'phone'        => '+9779800000002',
+            'password'     => Hash::make('password'),
+            'has_password' => true,
+            'status'       => 1,
             'remember_token' => Str::random(10),
         ]);
         $employee->syncRoles(['User']);

@@ -11,6 +11,15 @@ class MenuSeeder extends Seeder
     {
         $menus = [
             [
+                'name'=>'Dashboard',
+                'icon'=>'FaTachometerAlt',
+                'route'=>'dashboard',
+                'url'=>'/admin/dashboard',
+                'order'=>0,
+                'is_status'=>1,
+                'permission_name'=>'dashboard',
+            ],
+            [
                 'name'=>'Course Catalog',
                 'icon'=>'FaGraduationCap',
                 'route'=>'course-catalog',
@@ -29,7 +38,7 @@ class MenuSeeder extends Seeder
                 'permission_name'=>'invoices',
             ],
             [
-                'name'=>'Enrollments',
+                'name'=>'Course Enrollments',
                 'icon'=>'FaUserGraduate',
                 'route'=>'enrollments',
                 'url'=>'/admin/enrollments',
@@ -83,11 +92,20 @@ class MenuSeeder extends Seeder
                 'permission_name'=>'message_templates',
             ],
             [
+                'name'=>'Testimonials',
+                'icon'=>'FaQuoteLeft',
+                'route'=>'testimonials',
+                'url'=>'/admin/testimonials',
+                'order'=>9,
+                'is_status'=>1,
+                'permission_name'=>'testimonials',
+            ],
+            [
                 'name'=>'Access Control',
                 'icon'=>'FaUserShield',
                 'route'=>'access-control',
                 'url'=>'/admin/rbac',
-                'order'=>9,
+                'order'=>10,
                 'is_status'=>1,
                 'permission_name'=>'access_control'
             ],
@@ -96,7 +114,7 @@ class MenuSeeder extends Seeder
                 'icon'=>'FaUsers',
                 'route'=>'user-management',
                 'url'=>'/admin/user-management',
-                'order'=>10,
+                'order'=>11,
                 'is_status'=>1,
                 'permission_name'=>'user_management',
             ],
@@ -105,7 +123,7 @@ class MenuSeeder extends Seeder
                 'icon'=>'FaCog',
                 'route'=>'settings',
                 'url'=>'/admin/settings',
-                'order'=>11,
+                'order'=>12,
                 'is_status'=>1,
                 'permission_name'=>'settings',
                 'children'=>[

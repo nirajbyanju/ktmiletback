@@ -107,6 +107,7 @@ class RolePermissionSeeder extends Seeder
             'view_settings', 'edit_settings',
             'view_settings_menu',
             'view_settings_profile',
+            'view_testimonials', 'create_testimonials', 'edit_testimonials', 'delete_testimonials', 'upload_testimonials',
         ]);
 
         Role::findByName('User')->syncPermissions([
