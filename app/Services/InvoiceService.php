@@ -8,6 +8,7 @@ use App\Models\ExamBookingEnrollment;
 use App\Models\Invoice;
 use App\Models\MockTestEnrollment;
 use App\Models\MockTestSubscription;
+use App\Models\OfferClaim;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -20,8 +21,19 @@ class InvoiceService
     public function createForBatch(Batch $batch, User $user, array $data = []): Invoice
     {
         $amounts = $this->amountsForBatch($batch);
+        ['claim' => $claim, 'discount' => $offerDiscount] = $this->resolveOfferDiscount(
+            $user,
+            'course',
+            $batch->id,
+            $data['offer_claim_id'] ?? null
+        );
 
-        return DB::transaction(function () use ($batch, $user, $data, $amounts) {
+        if ($offerDiscount > 0) {
+            $amounts['discount_npr'] = $amounts['discount_npr'] + $offerDiscount;
+            $amounts['total_npr']    = max(0, $amounts['subtotal_npr'] - $amounts['discount_npr'] + $amounts['tax_npr']);
+        }
+
+        return DB::transaction(function () use ($batch, $user, $data, $amounts, $claim) {
             $invoice = Invoice::where('user_id', $user->id)
                 ->where('batch_id', $batch->id)
                 ->where('status', Invoice::STATUS_UNPAID)
@@ -31,6 +43,7 @@ class InvoiceService
             if ($invoice) {
                 $invoice->update([
                     ...$amounts,
+                    'offer_claim_id' => $claim?->id ?? $invoice->offer_claim_id,
                     'payment_method' => $data['payment_method'] ?? $invoice->payment_method ?? 'bank_qr',
                     'notes'          => $data['notes'] ?? $invoice->notes,
                 ]);
@@ -42,6 +55,7 @@ class InvoiceService
                 'invoice_number' => $this->nextInvoiceNumber(),
                 'user_id'        => $user->id,
                 'batch_id'       => $batch->id,
+                'offer_claim_id' => $claim?->id,
                 ...$amounts,
                 'status'         => Invoice::STATUS_UNPAID,
                 'payment_method' => $data['payment_method'] ?? 'bank_qr',
@@ -56,7 +70,14 @@ class InvoiceService
 
     public function createForMockTest(MockTestSubscription $subscription, User $user, array $data = []): Invoice
     {
-        return DB::transaction(function () use ($subscription, $user, $data) {
+        ['claim' => $claim, 'discount' => $offerDiscount] = $this->resolveOfferDiscount(
+            $user,
+            'mock_test',
+            $subscription->id,
+            $data['offer_claim_id'] ?? null
+        );
+
+        return DB::transaction(function () use ($subscription, $user, $data, $claim, $offerDiscount) {
             $existing = Invoice::where('user_id', $user->id)
                 ->where('mock_test_subscription_id', $subscription->id)
                 ->where('status', Invoice::STATUS_UNPAID)
@@ -64,7 +85,7 @@ class InvoiceService
                 ->first();
 
             $subtotal = (float) ($subscription->price ?? 0);
-            $discount = (float) ($subscription->discount ?? 0);
+            $discount = (float) ($subscription->discount ?? 0) + $offerDiscount;
             $total    = max(0, $subtotal - $discount);
 
             $amounts = [
@@ -77,6 +98,7 @@ class InvoiceService
             if ($existing) {
                 $existing->update([
                     ...$amounts,
+                    'offer_claim_id' => $claim?->id ?? $existing->offer_claim_id,
                     'payment_method' => $data['payment_method'] ?? $existing->payment_method ?? 'bank_qr',
                     'notes'          => $data['notes'] ?? $existing->notes,
                 ]);
@@ -87,6 +109,7 @@ class InvoiceService
                 'invoice_number'            => $this->nextInvoiceNumber(),
                 'user_id'                   => $user->id,
                 'mock_test_subscription_id' => $subscription->id,
+                'offer_claim_id'            => $claim?->id,
                 ...$amounts,
                 'status'                    => Invoice::STATUS_UNPAID,
                 'payment_method'            => $data['payment_method'] ?? 'bank_qr',
@@ -101,7 +124,14 @@ class InvoiceService
 
     public function createForExamBookingEnrollment(ExamBookingEnrollment $enrollment, User $user, array $data = []): Invoice
     {
-        return DB::transaction(function () use ($enrollment, $user, $data) {
+        ['claim' => $claim, 'discount' => $offerDiscount] = $this->resolveOfferDiscount(
+            $user,
+            'booking',
+            $enrollment->exam_booking_id,
+            $data['offer_claim_id'] ?? null
+        );
+
+        return DB::transaction(function () use ($enrollment, $user, $data, $claim, $offerDiscount) {
             $existing = Invoice::where('user_id', $user->id)
                 ->where('exam_booking_enrollment_id', $enrollment->id)
                 ->where('status', Invoice::STATUS_UNPAID)
@@ -110,7 +140,7 @@ class InvoiceService
 
             $plan     = $enrollment->examBooking;
             $subtotal = (float) ($plan->price ?? 0);
-            $discount = (float) ($plan->discount ?? 0);
+            $discount = (float) ($plan->discount ?? 0) + $offerDiscount;
             $total    = max(0, $subtotal - $discount);
 
             $amounts = [
@@ -123,6 +153,7 @@ class InvoiceService
             if ($existing) {
                 $existing->update([
                     ...$amounts,
+                    'offer_claim_id' => $claim?->id ?? $existing->offer_claim_id,
                     'payment_method' => $data['payment_method'] ?? $existing->payment_method ?? 'bank_qr',
                     'notes'          => $data['notes'] ?? $existing->notes,
                 ]);
@@ -133,6 +164,7 @@ class InvoiceService
                 'invoice_number'             => $this->nextInvoiceNumber(),
                 'user_id'                    => $user->id,
                 'exam_booking_enrollment_id' => $enrollment->id,
+                'offer_claim_id'             => $claim?->id,
                 ...$amounts,
                 'status'         => Invoice::STATUS_UNPAID,
                 'payment_method' => $data['payment_method'] ?? 'bank_qr',
@@ -154,6 +186,13 @@ class InvoiceService
                 'verified_by' => $admin->id,
                 'notes'       => $notes ?: $invoice->notes,
             ]);
+
+            // Lock the offer claim so it cannot be reused on another invoice
+            if ($invoice->offer_claim_id) {
+                OfferClaim::where('id', $invoice->offer_claim_id)
+                    ->whereNull('used_at')
+                    ->update(['used_at' => now()]);
+            }
 
             $invoice->loadMissing(['batch.course', 'user', 'mockTestSubscription', 'examBookingEnrollment.examBooking']);
 
@@ -211,6 +250,81 @@ class InvoiceService
         if (!$enrollment) return;
 
         $enrollment->update(['status' => 'booking_in_process']);
+    }
+
+    // ── Offer claim helpers ───────────────────────────────────────────────────
+
+    /**
+     * Auto-find the best applicable offer claim for this user+type+subjectId.
+     *
+     * Priority order:
+     *  1. Specific item match  (applicable_type = $type AND applicable_id = $subjectId)
+     *  2. Type-wide match      (applicable_type = $type AND applicable_id IS NULL)
+     *  3. Global match         (applicable_type = 'all')
+     *
+     * If an explicit $offerClaimId is provided, validates ownership/usability instead.
+     */
+    private function resolveOfferDiscount(User $user, string $type, ?int $subjectId, ?int $offerClaimId = null): array
+    {
+        if ($offerClaimId) {
+            // Manual pick — just validate it
+            $claim = OfferClaim::with('offer')
+                ->where('id', $offerClaimId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$claim || $claim->isUsed() || !$claim->offer?->isClaimable()) {
+                return ['claim' => null, 'discount' => 0.0];
+            }
+
+            return [
+                'claim'    => $claim,
+                'discount' => (float) $claim->offer->claim_discount_amount,
+            ];
+        }
+
+        // Auto-lookup: find the highest-priority applicable claim
+        $today = now()->toDateString();
+
+        $claim = OfferClaim::with('offer')
+            ->where('user_id', $user->id)
+            ->whereNull('used_at')
+            ->whereHas('offer', function ($q) use ($type, $subjectId, $today) {
+                $q->where('status', 'active')
+                  ->where('valid_date', '>=', $today)
+                  ->where(function ($q2) use ($type, $subjectId) {
+                      // Global offers
+                      $q2->where('applicable_type', 'all')
+                         // Type-specific (all items of that type)
+                         ->orWhere(function ($q3) use ($type) {
+                             $q3->where('applicable_type', $type)
+                                ->whereNull('applicable_id');
+                         })
+                         // Exact item match
+                         ->orWhere(function ($q3) use ($type, $subjectId) {
+                             $q3->where('applicable_type', $type)
+                                ->where('applicable_id', $subjectId);
+                         });
+                  });
+            })
+            // Most specific first: exact > type-wide > global
+            ->orderByRaw("
+                CASE
+                    WHEN offer_claims.source_type = ? AND offer_claims.source_id = ? THEN 1
+                    WHEN offer_claims.source_type = ? AND offer_claims.source_id IS NULL THEN 2
+                    ELSE 3
+                END
+            ", [$type, $subjectId, $type])
+            ->first();
+
+        if (!$claim) {
+            return ['claim' => null, 'discount' => 0.0];
+        }
+
+        return [
+            'claim'    => $claim,
+            'discount' => (float) $claim->offer->claim_discount_amount,
+        ];
     }
 
     // ── Pricing helpers ───────────────────────────────────────────────────────

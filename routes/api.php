@@ -27,6 +27,8 @@ use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\MockTestSubscriptionController;
 use App\Http\Controllers\Api\V1\MockTestEnrollmentController;
 use App\Http\Controllers\Api\V1\TestimonialController;
+use App\Http\Controllers\Api\V1\OfferController;
+use App\Http\Controllers\Api\V1\OfferClaimController;
 
 /*
 |--------------------------------------------------------------------------
@@ -67,6 +69,9 @@ Route::prefix('v1')->group(function () {
 
         // Testimonials — public listing
         Route::get('/testimonials', [TestimonialController::class, 'publicIndex'])->name('testimonials.public');
+
+        // Offers — public listing (active & not expired)
+        Route::get('/offers', [OfferController::class, 'publicIndex'])->name('offers.public');
     });
 
     // ==================== AUTHENTICATED ROUTES ====================
@@ -201,6 +206,19 @@ Route::prefix('v1')->group(function () {
         Route::post('admin/mock-test-subscriptions', [MockTestSubscriptionController::class, 'store'])->name('admin.mock-test-subscriptions.store');
         Route::patch('admin/mock-test-subscriptions/{id}', [MockTestSubscriptionController::class, 'adminUpdate'])->name('admin.mock-test-subscriptions.update');
         Route::delete('admin/mock-test-subscriptions/{id}', [MockTestSubscriptionController::class, 'destroy'])->name('admin.mock-test-subscriptions.destroy');
+
+        // ==================== OFFERS ====================
+        Route::get('admin/offers', [OfferController::class, 'index'])->name('admin.offers.index');
+        Route::post('admin/offers', [OfferController::class, 'store'])->name('admin.offers.store');
+        Route::get('admin/offers/{id}', [OfferController::class, 'show'])->name('admin.offers.show');
+        Route::put('admin/offers/{id}', [OfferController::class, 'update'])->name('admin.offers.update');
+        Route::delete('admin/offers/{id}', [OfferController::class, 'destroy'])->name('admin.offers.destroy');
+
+        // ==================== OFFER CLAIMS ====================
+        Route::post('offer-claims', [OfferClaimController::class, 'store'])->name('offer-claims.store');
+        Route::get('offer-claims', [OfferClaimController::class, 'userIndex'])->name('offer-claims.user-index');
+        Route::get('admin/offer-claims', [OfferClaimController::class, 'adminIndex'])->name('admin.offer-claims.index');
+        Route::delete('admin/offer-claims/{id}', [OfferClaimController::class, 'destroy'])->name('admin.offer-claims.destroy');
 
         // ==================== TESTIMONIALS ====================
         Route::get('admin/testimonials', [TestimonialController::class, 'index'])->name('admin.testimonials.index');

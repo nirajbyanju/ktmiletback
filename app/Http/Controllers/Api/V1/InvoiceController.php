@@ -65,6 +65,7 @@ class InvoiceController extends Controller
     {
         $data = $request->validate([
             'batch_id'       => ['required', 'integer', 'exists:batches,id'],
+            'offer_claim_id' => ['nullable', 'integer', 'exists:offer_claims,id'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'notes'          => ['nullable', 'string'],
         ]);
@@ -93,6 +94,7 @@ class InvoiceController extends Controller
     {
         $data = $request->validate([
             'mock_test_subscription_id' => ['required', 'integer', 'exists:mock_test_subscriptions,id'],
+            'offer_claim_id'            => ['nullable', 'integer', 'exists:offer_claims,id'],
             'payment_method'            => ['nullable', 'string', 'max:50'],
             'notes'                     => ['nullable', 'string'],
         ]);
@@ -121,6 +123,7 @@ class InvoiceController extends Controller
     {
         $data = $request->validate([
             'exam_booking_enrollment_id' => ['required', 'integer', 'exists:exam_bookings_enrollments,id'],
+            'offer_claim_id'             => ['nullable', 'integer', 'exists:offer_claims,id'],
             'payment_method'             => ['nullable', 'string', 'max:50'],
             'notes'                      => ['nullable', 'string'],
         ]);

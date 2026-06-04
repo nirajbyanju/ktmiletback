@@ -32,6 +32,10 @@ class DatabaseSeeder extends Seeder
             // Exam booking plans, enrollments & invoices
             ExamBookingSeeder::class,
 
+            // Offers & Claims
+            OfferSeeder::class,
+            OfferClaimSeeder::class,
+
             // Misc
             ContactMessageSeeder::class,
             TestimonialSeeder::class,

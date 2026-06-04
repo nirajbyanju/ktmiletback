@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\OfferClaim;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
@@ -20,12 +21,15 @@ class Invoice extends Model
     public const TYPE_MOCK_TEST = 'mock_test';
     public const TYPE_EXAM      = 'exam';
 
+    protected $appends = ['type'];
+
     protected $fillable = [
         'invoice_number',
         'user_id',
         'batch_id',
         'mock_test_subscription_id',
         'exam_booking_enrollment_id',
+        'offer_claim_id',
         'subtotal_npr',
         'discount_npr',
         'tax_npr',
@@ -47,6 +51,7 @@ class Invoice extends Model
         'batch_id'                   => 'integer',
         'mock_test_subscription_id'    => 'integer',
         'exam_booking_enrollment_id'   => 'integer',
+        'offer_claim_id'               => 'integer',
         'subtotal_npr'               => 'decimal:2',
         'discount_npr'               => 'decimal:2',
         'tax_npr'                    => 'decimal:2',
@@ -66,6 +71,11 @@ class Invoice extends Model
         if ($this->mock_test_subscription_id) return self::TYPE_MOCK_TEST;
         if ($this->exam_booking_enrollment_id) return self::TYPE_EXAM;
         return 'unknown';
+    }
+
+    public function offerClaim(): BelongsTo
+    {
+        return $this->belongsTo(OfferClaim::class);
     }
 
     public function batch(): BelongsTo

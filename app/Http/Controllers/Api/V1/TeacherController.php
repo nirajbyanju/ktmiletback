@@ -13,8 +13,16 @@ class TeacherController extends Controller
 {
     // ── Admin: full CRUD ──────────────────────────────────────────────────────
 
+    private function authorizeAdmin(Request $request): void
+    {
+        if (!$request->user()->hasAnyRole(['Super Admin', 'Admin']) && !$request->user()->can('manage_all')) {
+            abort(Response::HTTP_FORBIDDEN, 'Only admins can perform this action.');
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeAdmin($request);
         $query = Teacher::with('user:id,first_name,last_name,email');
 
         if ($request->filled('search')) {
@@ -38,6 +46,7 @@ class TeacherController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeAdmin($request);
         $teacher = Teacher::create($this->validated($request));
 
         return response()->json([
@@ -47,8 +56,9 @@ class TeacherController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAdmin($request);
         $teacher = Teacher::with('user:id,first_name,last_name,email')->findOrFail($id);
 
         return response()->json([
@@ -60,6 +70,7 @@ class TeacherController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAdmin($request);
         $teacher = Teacher::findOrFail($id);
         $teacher->update($this->validated($request, true));
 
@@ -70,8 +81,9 @@ class TeacherController extends Controller
         ]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAdmin($request);
         $teacher = Teacher::findOrFail($id);
         $this->deletePhotoFile($teacher);
         $teacher->delete();
