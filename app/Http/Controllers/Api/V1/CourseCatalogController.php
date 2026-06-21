@@ -54,6 +54,9 @@ class CourseCatalogController extends Controller
         return [
             'courses' => $courses,
             'batches' => Batch::with('course:id,course_name')
+                ->withCount([
+                    'enrollments as enrollments_count' => fn ($q) => $q->whereIn('crm_status', ['active', 'completed']),
+                ])
                 ->when($course !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
                 ->orderBy('price_npr')
                 ->orderBy('id')

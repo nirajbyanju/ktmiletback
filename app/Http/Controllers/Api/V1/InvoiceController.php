@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\Enrollment;
 use App\Models\ExamBookingEnrollment;
 use App\Models\Invoice;
 use App\Models\MockTestSubscription;
@@ -76,6 +77,32 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'This batch uses variable pricing. Please contact admin.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Prevent duplicate enrollment: block if the student already has a paid invoice
+        // or an active/completed enrollment in this batch.
+        $alreadyPaid = Invoice::where('user_id', $request->user()->id)
+            ->where('batch_id', $batch->id)
+            ->where('status', Invoice::STATUS_PAID)
+            ->exists();
+
+        if ($alreadyPaid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already enrolled in this batch. Contact admin if you need assistance.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $alreadyEnrolled = Enrollment::where('user_id', $request->user()->id)
+            ->where('batch_id', $batch->id)
+            ->whereIn('crm_status', ['active', 'completed'])
+            ->exists();
+
+        if ($alreadyEnrolled) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already enrolled in this batch. Contact admin if you need assistance.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 

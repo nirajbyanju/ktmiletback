@@ -14,17 +14,31 @@ class OfferController extends Controller
 {
     // ── Public ────────────────────────────────────────────────────────────────
 
-    public function publicIndex(): JsonResponse
+    public function publicIndex(Request $request): JsonResponse
     {
-        $offers = Offer::where('status', Offer::STATUS_ACTIVE)
+        $query = Offer::where('status', Offer::STATUS_ACTIVE)
             ->where('valid_date', '>=', Carbon::today()->toDateString())
             ->where(function ($q) {
                 $q->whereNull('start_date')
                   ->orWhere('start_date', '<=', Carbon::today()->toDateString());
-            })
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+            });
+
+        // Filter by applicable_type — always include 'all' offers alongside the requested type
+        if ($request->filled('type') && in_array($request->input('type'), Offer::APPLICABLE_TYPES, true)) {
+            $type = $request->input('type');
+            $query->where(function ($q) use ($type) {
+                $q->where('applicable_type', $type)
+                  ->orWhere('applicable_type', Offer::APPLICABLE_ALL);
+            });
+        }
+
+        // Filter by badge keyword (case-insensitive contains match)
+        if ($request->filled('badge')) {
+            $badge = $request->string('badge');
+            $query->where('badge', 'LIKE', '%' . $badge . '%');
+        }
+
+        $offers = $query->orderBy('sort_order')->orderBy('id')->get();
 
         return response()->json([
             'success' => true,

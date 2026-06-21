@@ -15,6 +15,9 @@ class Batch extends Model
     protected $fillable = [
         'course_id',
         'batch_type',
+        'best_for',
+        'size_label',
+        'is_featured',
         'min_size',
         'max_size',
         'price_npr',
@@ -48,6 +51,7 @@ class Batch extends Model
         'offer_starts_at'   => 'date:Y-m-d',
         'offer_ends_at'     => 'date:Y-m-d',
         'is_active'         => 'boolean',
+        'is_featured'       => 'boolean',
         'teacher_id'        => 'integer',
         'created_by'        => 'integer',
         'updated_by'        => 'integer',

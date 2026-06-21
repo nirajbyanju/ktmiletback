@@ -15,7 +15,9 @@ class EnrollmentController extends Controller
     public function index(Request $request)
     {
         $query = Enrollment::with([
+            'batch:id,course_id,batch_type,class_time,class_link,start_date,end_date,schedule_notes,min_size,max_size,teacher_id,is_active',
             'batch.course:id,course_name',
+            'batch.teacher:id,name,email,phone',
             'invoice:id,invoice_number,status,total_npr',
         ]);
 
@@ -39,7 +41,12 @@ class EnrollmentController extends Controller
 
     public function show(Request $request, int $id)
     {
-        $enrollment = Enrollment::with('batch.course:id,course_name')->findOrFail($id);
+        $enrollment = Enrollment::with([
+            'batch:id,course_id,batch_type,class_time,class_link,start_date,end_date,schedule_notes,min_size,max_size,teacher_id',
+            'batch.course:id,course_name',
+            'batch.teacher:id,name,email,phone',
+            'invoice:id,invoice_number,status,total_npr',
+        ])->findOrFail($id);
 
         if (!$this->canManageAll($request) && $enrollment->user_id !== $request->user()->id) {
             abort(Response::HTTP_FORBIDDEN, 'You cannot access this enrollment.');
@@ -107,8 +114,9 @@ class EnrollmentController extends Controller
 
         $query = Enrollment::with([
             'user:id,first_name,last_name,email,phone',
-            'batch:id,course_id,batch_type,class_time,is_active',
+            'batch:id,course_id,batch_type,class_time,class_link,start_date,end_date,schedule_notes,is_active,teacher_id',
             'batch.course:id,course_name',
+            'batch.teacher:id,name,email,phone',
             'invoice:id,invoice_number,status,total_npr',
         ])->latest('id');
 

@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\V1\MockTestEnrollmentController;
 use App\Http\Controllers\Api\V1\TestimonialController;
 use App\Http\Controllers\Api\V1\OfferController;
 use App\Http\Controllers\Api\V1\OfferClaimController;
+use App\Http\Controllers\Api\V1\DemoRequestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -240,5 +241,12 @@ Route::prefix('v1')->group(function () {
 
         // User menu
         Route::get('/user/menu', [MenusController::class, 'getMenu'])->name('user.menu');
+
+        // ==================== DEMO REQUESTS ====================
+        Route::post('demo-requests', [DemoRequestController::class, 'store'])->name('demo-requests.store');
+        Route::get('admin/demo-requests/stats', [DemoRequestController::class, 'stats'])->name('admin.demo-requests.stats');
+        Route::get('admin/demo-requests', [DemoRequestController::class, 'adminIndex'])->name('admin.demo-requests.index');
+        Route::get('admin/demo-requests/{demoRequest}', [DemoRequestController::class, 'adminShow'])->name('admin.demo-requests.show');
+        Route::patch('admin/demo-requests/{demoRequest}', [DemoRequestController::class, 'adminUpdate'])->name('admin.demo-requests.update');
     });
 });

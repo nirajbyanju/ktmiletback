@@ -194,7 +194,7 @@ class InvoiceService
                     ->update(['used_at' => now()]);
             }
 
-            $invoice->loadMissing(['batch.course', 'user', 'mockTestSubscription', 'examBookingEnrollment.examBooking']);
+            $invoice->loadMissing(['batch.course', 'batch.teacher', 'user', 'mockTestSubscription', 'examBookingEnrollment.examBooking']);
 
             // Activate the right enrollment based on invoice type
             match ($invoice->type) {
@@ -214,15 +214,20 @@ class InvoiceService
 
     private function activateCourseEnrollment(Invoice $invoice): void
     {
+        $teacherName = $invoice->batch?->teacher?->name ?? null;
+
         Enrollment::updateOrCreate(
             ['invoice_id' => $invoice->id],
             [
-                'user_id'        => $invoice->user_id,
-                'student_name'   => $invoice->user?->display_name ?? $invoice->user?->email ?? 'Student',
-                'batch_id'       => $invoice->batch_id,
+                'user_id'         => $invoice->user_id,
+                'student_name'    => $invoice->user?->display_name ?? $invoice->user?->email ?? 'Student',
+                'batch_id'        => $invoice->batch_id,
                 'enrollment_date' => now()->toDateString(),
-                'amount_paid'    => $invoice->total_npr,
-                'status'         => 'active',
+                'amount_paid'     => $invoice->total_npr,
+                'status'          => 'active',
+                'crm_status'      => 'active',
+                'payment_status'  => 'paid',
+                'teacher'         => $teacherName,
             ]
         );
     }
