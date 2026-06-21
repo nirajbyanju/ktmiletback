@@ -120,6 +120,11 @@ class UserAccessController extends BaseController
 
         $user->syncRoles($roles->pluck('name')->all());
 
+        // Auto-create Teacher profile if Teacher role was just assigned
+        if ($roles->contains(fn ($role) => $role->name === 'Teacher')) {
+            $this->userAdministrationService->ensureTeacherProfile($user);
+        }
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return response()->json([

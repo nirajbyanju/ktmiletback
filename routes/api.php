@@ -156,10 +156,16 @@ Route::prefix('v1')->group(function () {
 
         // Teacher self-service (requires Teacher role)
         Route::prefix('teacher')->as('teacher.')->group(function () {
-            Route::get('/profile', [TeacherController::class, 'myProfile'])->name('profile');
-            Route::patch('/profile', [TeacherController::class, 'updateMyProfile'])->name('profile.update');
-            Route::post('/profile/photo', [TeacherController::class, 'uploadPhoto'])->name('profile.photo.upload');
+            Route::get('/profile',          [TeacherController::class, 'myProfile'])->name('profile');
+            Route::patch('/profile',        [TeacherController::class, 'updateMyProfile'])->name('profile.update');
+            Route::post('/profile/photo',   [TeacherController::class, 'uploadPhoto'])->name('profile.photo.upload');
             Route::delete('/profile/photo', [TeacherController::class, 'deletePhoto'])->name('profile.photo.delete');
+
+            // Courses, students & invoices visible to the teacher
+            Route::get('/courses',                [TeacherController::class, 'myCourses'])->name('courses');
+            Route::patch('/batches/{batchId}',    [TeacherController::class, 'updateMyBatch'])->name('batches.update');
+            Route::get('/students',               [TeacherController::class, 'myStudents'])->name('students');
+            Route::get('/student-invoices',       [TeacherController::class, 'myStudentInvoices'])->name('student-invoices');
         });
 
         // ==================== ENROLLMENTS (course) ====================
@@ -175,6 +181,9 @@ Route::prefix('v1')->group(function () {
         Route::post('invoices/exam-booking', [InvoiceController::class, 'storeForExam'])->name('invoices.exam.store');
         Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
         Route::patch('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
+        Route::patch('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+        Route::patch('invoices/{invoice}/refund', [InvoiceController::class, 'refund'])->name('invoices.refund');
+        Route::post('invoices/{invoice}/payment-screenshot', [InvoiceController::class, 'uploadScreenshot'])->name('invoices.screenshot.upload');
 
         // ==================== CONTACT MESSAGES (admin) ====================
         Route::get('admin/contact-messages', [ContactMessageController::class, 'adminIndex'])->name('admin.contact-messages.index');

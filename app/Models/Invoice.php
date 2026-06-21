@@ -13,8 +13,10 @@ class Invoice extends Model
 {
     use HasFactory, SoftDeletes;
 
-    public const STATUS_UNPAID = 'unpaid';
-    public const STATUS_PAID   = 'paid';
+    public const STATUS_UNPAID    = 'unpaid';
+    public const STATUS_PAID      = 'paid';
+    public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_REFUNDED  = 'refunded';
 
     // Which business entity this invoice covers
     public const TYPE_COURSE    = 'course';
@@ -41,6 +43,12 @@ class Invoice extends Model
         'verified_at',
         'verified_by',
         'notes',
+        'payment_screenshot_path',
+        'screenshot_uploaded_at',
+        'refunded_amount_npr',
+        'refund_reason',
+        'refunded_at',
+        'refunded_by',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -58,10 +66,14 @@ class Invoice extends Model
         'total_npr'                  => 'decimal:2',
         'invoice_date'               => 'date:Y-m-d',
         'due_date'                   => 'date:Y-m-d',
-        'verified_at' => 'datetime',
-        'created_by'  => 'integer',
-        'updated_by'  => 'integer',
-        'deleted_by'  => 'integer',
+        'verified_at'                => 'datetime',
+        'screenshot_uploaded_at'     => 'datetime',
+        'refunded_amount_npr'        => 'decimal:2',
+        'refunded_at'                => 'datetime',
+        'refunded_by'                => 'integer',
+        'created_by'                 => 'integer',
+        'updated_by'                 => 'integer',
+        'deleted_by'                 => 'integer',
     ];
 
     // Derived type based on which FK is set
@@ -91,6 +103,11 @@ class Invoice extends Model
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function refundedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refunded_by');
     }
 
     public function mockTestSubscription(): BelongsTo

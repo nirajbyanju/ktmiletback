@@ -12,6 +12,7 @@ use App\Services\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
 {
@@ -60,7 +61,7 @@ class InvoiceController extends Controller
         ]);
     }
 
-    // ── Create for course batch ───────────────────────────────────────────────
+    // -- Create for course batch --------------------------------------------
 
     public function store(Request $request): JsonResponse
     {
@@ -80,8 +81,6 @@ class InvoiceController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // Prevent duplicate enrollment: block if the student already has a paid invoice
-        // or an active/completed enrollment in this batch.
         $alreadyPaid = Invoice::where('user_id', $request->user()->id)
             ->where('batch_id', $batch->id)
             ->where('status', Invoice::STATUS_PAID)
@@ -115,7 +114,7 @@ class InvoiceController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    // ── Create for mock test subscription ─────────────────────────────────────
+    // -- Create for mock test subscription ----------------------------------
 
     public function storeForMockTest(Request $request): JsonResponse
     {
@@ -144,7 +143,7 @@ class InvoiceController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    // ── Create for exam booking ───────────────────────────────────────────────
+    // -- Create for exam booking --------------------------------------------
 
     public function storeForExam(Request $request): JsonResponse
     {
@@ -161,6 +160,18 @@ class InvoiceController extends Controller
             abort(Response::HTTP_FORBIDDEN, 'You cannot create an invoice for this enrollment.');
         }
 
+        $alreadyPaid = Invoice::where('user_id', $enrollment->user_id)
+            ->where('exam_booking_enrollment_id', $enrollment->id)
+            ->where('status', Invoice::STATUS_PAID)
+            ->exists();
+
+        if ($alreadyPaid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This exam booking has already been paid. Contact admin if you need assistance.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $invoice = $this->invoiceService->createForExamBookingEnrollment($enrollment, $request->user(), $data);
 
         return response()->json([
@@ -170,7 +181,7 @@ class InvoiceController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    // ── Show / mark paid ──────────────────────────────────────────────────────
+    // -- Show ---------------------------------------------------------------
 
     public function show(Request $request, Invoice $invoice): JsonResponse
     {
@@ -190,10 +201,26 @@ class InvoiceController extends Controller
         ]);
     }
 
+    // -- Mark paid (admin only) --------------------------------------------
+
     public function markPaid(Request $request, Invoice $invoice): JsonResponse
     {
         if (!$this->canManageInvoices($request)) {
             abort(Response::HTTP_FORBIDDEN, 'Only admins can verify invoice payment.');
+        }
+
+        if ($invoice->status === Invoice::STATUS_PAID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice is already marked as paid.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($invoice->status !== Invoice::STATUS_UNPAID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only unpaid invoices can be marked as paid. Current status: ' . $invoice->status,
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $data    = $request->validate(['notes' => ['nullable', 'string']]);
@@ -206,21 +233,137 @@ class InvoiceController extends Controller
         ]);
     }
 
-    // ── Auth helpers ──────────────────────────────────────────────────────────
+    // -- Upload payment screenshot (student, unpaid only) ------------------
 
-    private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void
+    public function uploadScreenshot(Request $request, Invoice $invoice): JsonResponse
     {
-        if ($this->canManageInvoices($request)) {
-            return;
-        }
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         if ($invoice->user_id !== $request->user()->id) {
-            abort(Response::HTTP_FORBIDDEN, 'You cannot access this invoice.');
+            abort(Response::HTTP_FORBIDDEN, 'You cannot upload a screenshot for this invoice.');
         }
+
+        if (in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_REFUNDED])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot upload a screenshot for a ' . $invoice->status . ' invoice.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $request->validate([
+            'screenshot' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+        ]);
+
+        $file = $request->file('screenshot');
+        $path = $file->store('payment_screenshots/' . $request->user()->id, 'local');
+
+        $invoice->update([
+            'payment_screenshot_path' => $path,
+            'screenshot_uploaded_at'  => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment screenshot uploaded successfully. Admin will verify shortly.',
+            'data'    => $invoice->fresh([
+                'batch.course',
+                'mockTestSubscription',
+                'examBookingEnrollment.examBooking',
+                'user:id,name,first_name,last_name,email,phone',
+            ]),
+        ]);
     }
+
+    // -- Refund invoice (admin only, paid only) ----------------------------
+
+    public function refund(Request $request, Invoice $invoice): JsonResponse
+    {
+        if (!$this->canManageInvoices($request)) {
+            abort(Response::HTTP_FORBIDDEN, 'Only admins can process refunds.');
+        }
+
+        if ($invoice->status !== Invoice::STATUS_PAID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only paid invoices can be refunded.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $data = $request->validate([
+            'refund_amount' => ['required', 'numeric', 'min:0.01', 'max:' . $invoice->total_npr],
+            'reason'        => ['required', 'string', 'max:1000'],
+        ]);
+
+        $invoice = $this->invoiceService->processRefund(
+            $invoice,
+            $request->user(),
+            (float) $data['refund_amount'],
+            $data['reason']
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Refund processed successfully. Enrollment has been deactivated.',
+            'data'    => $invoice,
+        ]);
+    }
+
+    // -- Cancel invoice (student only, unpaid only) ------------------------
+
+    public function cancel(Request $request, Invoice $invoice): JsonResponse
+    {
+        if ($invoice->user_id !== $request->user()->id) {
+            abort(Response::HTTP_FORBIDDEN, 'You cannot cancel this invoice.');
+        }
+
+        if ($invoice->status === Invoice::STATUS_PAID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice has already been verified and cannot be cancelled.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($invoice->status === Invoice::STATUS_CANCELLED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice is already cancelled.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($invoice->status === Invoice::STATUS_REFUNDED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice has been refunded and cannot be cancelled.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $invoice->update(['status' => Invoice::STATUS_CANCELLED]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Invoice cancelled successfully. You can generate a new invoice at any time.',
+            'data'    => $invoice->fresh([
+                'batch.course',
+                'mockTestSubscription',
+                'examBookingEnrollment.examBooking',
+                'user:id,name,first_name,last_name,email,phone',
+            ]),
+        ]);
+    }
+
+    // -- Helpers -----------------------------------------------------------
 
     private function canManageInvoices(Request $request): bool
     {
-        return $request->user()->hasAnyRole(['Super Admin', 'Admin']) || $request->user()->can('manage_all');
+        $user = $request->user();
+        return $user && ($user->hasAnyRole(['Super Admin', 'Admin']) || $user->can('manage_all'));
+    }
+
+    private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void
+    {
+        if ($this->canManageInvoices($request)) return;
+        if ($invoice->user_id !== $request->user()->id) {
+            abort(Response::HTTP_FORBIDDEN, 'You do not have access to this invoice.');
+        }
     }
 }

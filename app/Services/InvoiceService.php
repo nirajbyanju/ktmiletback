@@ -30,7 +30,9 @@ class InvoiceService
 
         if ($offerDiscount > 0) {
             $amounts['discount_npr'] = $amounts['discount_npr'] + $offerDiscount;
-            $amounts['total_npr']    = max(0, $amounts['subtotal_npr'] - $amounts['discount_npr'] + $amounts['tax_npr']);
+            $afterDiscount           = max(0.0, $amounts['subtotal_npr'] - $amounts['discount_npr']);
+            $amounts['tax_npr']      = round($afterDiscount * 0.13, 2); // recalculate VAT on true after-discount amount
+            $amounts['total_npr']    = round($afterDiscount + $amounts['tax_npr'], 2);
         }
 
         return DB::transaction(function () use ($batch, $user, $data, $amounts, $claim) {
@@ -157,10 +159,16 @@ class InvoiceService
                     'payment_method' => $data['payment_method'] ?? $existing->payment_method ?? 'bank_qr',
                     'notes'          => $data['notes'] ?? $existing->notes,
                 ]);
+
+                // Ensure status reflects that payment is awaited
+                if (in_array($enrollment->status, ['new_request', 'document_pending'])) {
+                    $enrollment->update(['status' => 'payment_pending']);
+                }
+
                 return $existing->fresh(['examBookingEnrollment.examBooking', 'user:id,name,first_name,last_name,email,phone']);
             }
 
-            return Invoice::create([
+            $invoice = Invoice::create([
                 'invoice_number'             => $this->nextInvoiceNumber(),
                 'user_id'                    => $user->id,
                 'exam_booking_enrollment_id' => $enrollment->id,
@@ -171,8 +179,73 @@ class InvoiceService
                 'invoice_date'   => now()->toDateString(),
                 'due_date'       => now()->addDays(3)->toDateString(),
                 'notes'          => $data['notes'] ?? null,
-            ])->load(['examBookingEnrollment.examBooking', 'user:id,name,first_name,last_name,email,phone']);
+            ]);
+
+            // Move enrollment to payment_pending so admin can see user is ready to pay
+            if (in_array($enrollment->status, ['new_request', 'document_pending'])) {
+                $enrollment->update(['status' => 'payment_pending']);
+            }
+
+            return $invoice->load(['examBookingEnrollment.examBooking', 'user:id,name,first_name,last_name,email,phone']);
         });
+    }
+
+    // ── Process refund (admin only) ───────────────────────────────────────────
+
+    public function processRefund(Invoice $invoice, User $admin, float $refundAmount, string $reason): Invoice
+    {
+        return DB::transaction(function () use ($invoice, $admin, $refundAmount, $reason) {
+            // 1. Update invoice to refunded state
+            $invoice->update([
+                'status'              => Invoice::STATUS_REFUNDED,
+                'refunded_amount_npr' => $refundAmount,
+                'refund_reason'       => $reason,
+                'refunded_at'         => now(),
+                'refunded_by'         => $admin->id,
+            ]);
+
+            $invoice->loadMissing(['batch', 'user', 'enrollment', 'mockTestEnrollment', 'examBookingEnrollment']);
+
+            // 2. Deactivate enrollment based on invoice type
+            match ($invoice->type) {
+                Invoice::TYPE_COURSE    => $this->deactivateCourseEnrollment($invoice),
+                Invoice::TYPE_MOCK_TEST => $this->deactivateMockTestEnrollment($invoice),
+                Invoice::TYPE_EXAM      => $this->deactivateExamBookingEnrollment($invoice),
+                default                 => null,
+            };
+
+            return $invoice->fresh([
+                'batch.course:id,course_name',
+                'user:id,name,first_name,last_name,email,phone',
+                'refundedBy:id,name,first_name,last_name',
+            ]);
+        });
+    }
+
+    // ── Enrollment deactivations (on refund) ──────────────────────────────────
+
+    private function deactivateCourseEnrollment(Invoice $invoice): void
+    {
+        if (!$invoice->enrollment) return;
+
+        $invoice->enrollment->update([
+            'status'         => 'inactive',
+            'crm_status'     => 'dropped',
+            'payment_status' => 'refunded',
+        ]);
+    }
+
+    private function deactivateMockTestEnrollment(Invoice $invoice): void
+    {
+        // Soft-delete the mock test enrollment to revoke access
+        $invoice->mockTestEnrollment?->delete();
+    }
+
+    private function deactivateExamBookingEnrollment(Invoice $invoice): void
+    {
+        if (!$invoice->examBookingEnrollment) return;
+
+        $invoice->examBookingEnrollment->update(['status' => 'cancelled']);
     }
 
     // ── Mark paid ─────────────────────────────────────────────────────────────
@@ -353,15 +426,16 @@ class InvoiceService
 
     private function amountsForBatch(Batch $batch): array
     {
-        $subtotal = (float) ($batch->price_npr ?? 0);
-        $discount = $this->discountAmount($batch, $subtotal);
-        $tax      = 0.0;
+        $subtotal      = (float) ($batch->price_npr ?? 0);
+        $discount      = $this->discountAmount($batch, $subtotal);
+        $afterDiscount = max(0.0, $subtotal - $discount);
+        $tax           = round($afterDiscount * 0.13, 2); // 13% VAT
 
         return [
             'subtotal_npr' => $subtotal,
             'discount_npr' => $discount,
             'tax_npr'      => $tax,
-            'total_npr'    => max(0, $subtotal - $discount + $tax),
+            'total_npr'    => round($afterDiscount + $tax, 2),
         ];
     }
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RefreshToken;
+use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,11 @@ class UserAdministrationService
             ])->save();
 
             $user->syncRoles($roles->pluck('name')->all());
+
+            // Auto-create Teacher profile when the Teacher role is assigned
+            if ($roles->contains(fn (Role $role) => $role->name === 'Teacher')) {
+                $this->ensureTeacherProfile($user);
+            }
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -138,6 +144,25 @@ class UserAdministrationService
                 ]);
             }
         }
+    }
+
+    /**
+     * Ensure a Teacher profile exists for this user.
+     * Called automatically when the Teacher role is assigned.
+     * Safe to call multiple times — uses firstOrCreate.
+     */
+    public function ensureTeacherProfile(User $user): Teacher
+    {
+        return Teacher::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'teacher_id' => Teacher::nextTeacherId(),
+                'name'       => trim($user->first_name . ' ' . $user->last_name) ?: $user->name,
+                'email'      => $user->email,
+                'phone'      => $user->phone,
+                'status'     => 'Active',
+            ]
+        );
     }
 
     protected function generateUserCode(): string
