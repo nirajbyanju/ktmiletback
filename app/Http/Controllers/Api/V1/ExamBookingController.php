@@ -146,6 +146,7 @@ class ExamBookingController extends BaseController
             'discount'  => 'nullable|numeric|min:0',
         ]);
 
+        $validated['discount'] = $validated['discount'] ?? 0;
         $plan = ExamBooking::create($validated);
 
         return response()->json(['success' => true, 'message' => 'Plan created.', 'data' => $plan], 201);

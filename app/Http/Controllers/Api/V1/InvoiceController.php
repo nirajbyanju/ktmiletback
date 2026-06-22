@@ -8,6 +8,7 @@ use App\Models\Enrollment;
 use App\Models\ExamBookingEnrollment;
 use App\Models\Invoice;
 use App\Models\MockTestSubscription;
+use App\Services\AdminNotificationService;
 use App\Services\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,8 +17,10 @@ use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoiceService)
-    {
+    public function __construct(
+        private readonly InvoiceService $invoiceService,
+        private readonly AdminNotificationService $notifications,
+    ) {
     }
 
     public function index(Request $request): JsonResponse
@@ -107,6 +110,8 @@ class InvoiceController extends Controller
 
         $invoice = $this->invoiceService->createForBatch($batch, $request->user(), $data);
 
+        $this->notifications->notifyInvoiceCreated($invoice, $request->user());
+
         return response()->json([
             'success' => true,
             'message' => 'Invoice generated successfully.',
@@ -135,6 +140,8 @@ class InvoiceController extends Controller
         }
 
         $invoice = $this->invoiceService->createForMockTest($subscription, $request->user(), $data);
+
+        $this->notifications->notifyInvoiceCreated($invoice, $request->user());
 
         return response()->json([
             'success' => true,
@@ -173,6 +180,8 @@ class InvoiceController extends Controller
         }
 
         $invoice = $this->invoiceService->createForExamBookingEnrollment($enrollment, $request->user(), $data);
+
+        $this->notifications->notifyInvoiceCreated($invoice, $request->user());
 
         return response()->json([
             'success' => true,
@@ -226,6 +235,8 @@ class InvoiceController extends Controller
         $data    = $request->validate(['notes' => ['nullable', 'string']]);
         $invoice = $this->invoiceService->markPaid($invoice, $request->user(), $data['notes'] ?? null);
 
+        $this->notifications->notifyInvoicePaid($invoice, $request->user());
+
         return response()->json([
             'success' => true,
             'message' => 'Invoice marked paid and enrollment activated successfully.',
@@ -261,6 +272,8 @@ class InvoiceController extends Controller
             'payment_screenshot_path' => $path,
             'screenshot_uploaded_at'  => now(),
         ]);
+
+        $this->notifications->notifyScreenshotUploaded($invoice->fresh(), $request->user());
 
         return response()->json([
             'success' => true,
@@ -301,6 +314,8 @@ class InvoiceController extends Controller
             $data['reason']
         );
 
+        $this->notifications->notifyInvoiceRefunded($invoice, $request->user());
+
         return response()->json([
             'success' => true,
             'message' => 'Refund processed successfully. Enrollment has been deactivated.',
@@ -338,6 +353,8 @@ class InvoiceController extends Controller
         }
 
         $invoice->update(['status' => Invoice::STATUS_CANCELLED]);
+
+        $this->notifications->notifyInvoiceCancelled($invoice->fresh(), $request->user());
 
         return response()->json([
             'success' => true,

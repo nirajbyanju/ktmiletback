@@ -16,6 +16,7 @@ use App\Services\UserMenuService;
 use Carbon\Carbon;
 use App\Models\RefreshToken;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends BaseController
 {
@@ -90,6 +91,11 @@ class AuthController extends BaseController
 
         // First check authentication without loading relationships
         if (!Auth::attempt($request->only('email', 'password'))) {
+            Log::warning('Failed login attempt', [
+                'email' => $request->email,
+                'ip'    => $request->ip(),
+                'ua'    => $request->userAgent(),
+            ]);
             return response()->json([
                 'error' => [
                     'status' => 'error',

@@ -155,7 +155,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('teachers', TeacherController::class);
 
         // Teacher self-service (requires Teacher role)
-        Route::prefix('teacher')->as('teacher.')->group(function () {
+        Route::prefix('teacher')->as('teacher.')->middleware('role:Teacher|Admin|Super Admin')->group(function () {
             Route::get('/profile',          [TeacherController::class, 'myProfile'])->name('profile');
             Route::patch('/profile',        [TeacherController::class, 'updateMyProfile'])->name('profile.update');
             Route::post('/profile/photo',   [TeacherController::class, 'uploadPhoto'])->name('profile.photo.upload');

@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Enrollment;
+use App\Services\AdminNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 class EnrollmentController extends Controller
 {
+    public function __construct(private readonly AdminNotificationService $notifications)
+    {
+    }
+
     // ── Student: own enrollments ───────────────────────────────────────────────
 
     public function index(Request $request)
@@ -151,7 +156,8 @@ class EnrollmentController extends Controller
     {
         $this->authorizeManageAll($request);
 
-        $enrollment = Enrollment::findOrFail($id);
+        $enrollment = Enrollment::with('user')->findOrFail($id);
+        $oldCrmStatus = $enrollment->crm_status;
 
         $validated = $request->validate([
             'lead_id'               => 'nullable|integer',
@@ -170,6 +176,18 @@ class EnrollmentController extends Controller
         ]);
 
         $enrollment->update($validated);
+
+        // Fire notification if crm_status changed (single fresh() call)
+        $freshEnrollment = $enrollment->fresh(['user', 'batch.course']);
+        $newCrmStatus    = $freshEnrollment?->crm_status;
+        if ($oldCrmStatus !== $newCrmStatus && $newCrmStatus !== null) {
+            $this->notifications->notifyEnrollmentStatusChanged(
+                $freshEnrollment,
+                (string) $oldCrmStatus,
+                (string) $newCrmStatus,
+                $request->user(),
+            );
+        }
 
         return response()->json([
             'success' => true,

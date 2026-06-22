@@ -57,16 +57,18 @@ abstract class BaseRealtimeNotification extends Notification
         string $severity = 'info',
     ): array {
         return [
-            'type' => $type,
-            'title' => $title,
-            'message' => $message,
-            'severity' => $severity,
-            'action_url' => $actionUrl,
+            'type'         => $type,
+            'title'        => $title,
+            'message'      => $message,
+            'severity'     => $severity,
+            'action_url'   => $actionUrl,
             'action_label' => $actionLabel,
-            'entity' => $entity,
-            'actor' => $actor,
-            'meta' => $meta,
-            'created_at' => now()->toISOString(),
+            'entity'       => $entity,
+            // Flat name for the normalizer (data.actor_name) + full object for future use
+            'actor_name'   => $actor['name'] ?? null,
+            'actor'        => $actor,
+            'meta'         => $meta,
+            'created_at'   => now()->toISOString(),
         ];
     }
 

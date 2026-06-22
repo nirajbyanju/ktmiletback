@@ -15,30 +15,31 @@ class DatabaseSeeder extends Seeder
             // Core setup
             MenuSeeder::class,
             RolePermissionSeeder::class,
-
-            // Users
             UserSeeder::class,
-            TeacherSeeder::class,
-            StudentSeeder::class,
 
-            // Course catalog, enrollments & invoices
-            CourseCatalogSeeder::class,
-            EnrollmentInvoiceSeeder::class,
+            // // Users
+            // UserSeeder::class,
+             TeacherSeeder::class,
+            // StudentSeeder::class,
 
-            // Mock test plans, enrollments & invoices
-            MockTestSubscriptionSeeder::class,
-            MockTestEnrollmentSeeder::class,
+            // // Course catalog, enrollments & invoices
+         CourseCatalogSeeder::class,
+            // EnrollmentInvoiceSeeder::class,
 
-            // Exam booking plans, enrollments & invoices
-            ExamBookingSeeder::class,
+            // // Mock test plans, enrollments & invoices
+            // MockTestSubscriptionSeeder::class,
+            // MockTestEnrollmentSeeder::class,
 
-            // Offers & Claims
-            OfferSeeder::class,
-            OfferClaimSeeder::class,
+            // // Exam booking plans, enrollments & invoices
+            // ExamBookingSeeder::class,
 
-            // Misc
-            ContactMessageSeeder::class,
-            TestimonialSeeder::class,
+            // // Offers & Claims
+            // OfferSeeder::class,
+            // OfferClaimSeeder::class,
+
+            // // Misc
+            // ContactMessageSeeder::class,
+            // TestimonialSeeder::class,
         ]);
     }
 }

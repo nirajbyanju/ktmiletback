@@ -65,7 +65,9 @@ class TestimonialController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $testimonial = Testimonial::create($this->validated($request));
+        $data = $this->validated($request);
+        $data['initials'] = $this->deriveInitials($data['name'] ?? '');
+        $testimonial = Testimonial::create($data);
 
         return response()->json([
             'success' => true,
@@ -155,7 +157,6 @@ class TestimonialController extends Controller
         $required = $isUpdate ? ['sometimes', 'required'] : ['required'];
 
         return $request->validate([
-            'initials'    => [...$required, 'string', 'max:10'],
             'name'        => [...$required, 'string', 'max:100'],
             'meta'        => [...$required, 'string', 'max:150'],
             'tag'         => [...$required, 'string', 'max:100'],
@@ -166,6 +167,16 @@ class TestimonialController extends Controller
             'is_featured' => ['boolean'],
             'sort_order'  => ['integer', 'min:0'],
         ]);
+    }
+
+    private function deriveInitials(string $name): string
+    {
+        $words = preg_split('/\s+/', trim($name));
+        $initials = '';
+        foreach (array_slice($words, 0, 2) as $word) {
+            $initials .= mb_strtoupper(mb_substr($word, 0, 1));
+        }
+        return $initials ?: '?';
     }
 
     private function deletePhotoFile(Testimonial $testimonial): void

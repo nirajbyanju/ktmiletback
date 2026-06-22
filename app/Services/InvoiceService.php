@@ -279,7 +279,7 @@ class InvoiceService
 
             $this->sendPaymentConfirmationEmail($invoice);
 
-            return $invoice->fresh(['batch.course', 'user', 'enrollment', 'mockTestEnrollment', 'examBookingEnrollment.examBooking']);
+            return $invoice->fresh(['batch.course', 'user', 'mockTestSubscription', 'enrollment', 'mockTestEnrollment', 'examBookingEnrollment.examBooking']);
         });
     }
 
