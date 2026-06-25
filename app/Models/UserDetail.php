@@ -46,9 +46,12 @@ class UserDetail extends Model
         }
 
         if (Str::startsWith($this->profile_picture, ['http://', 'https://'])) {
-            return $this->profile_picture;
+            return $this->profile_picture; // Google OAuth avatar — already a full URL
         }
 
-        return Storage::disk('public')->url($this->profile_picture);
+        // Stream through controller to bypass symlink issues (Windows artisan serve).
+        // ?v= cache-busts the browser cache whenever the picture is replaced.
+        return url("/api/v1/public/users/{$this->user_id}/profile-picture")
+            . '?v=' . ($this->updated_at?->timestamp ?? 0);
     }
 }

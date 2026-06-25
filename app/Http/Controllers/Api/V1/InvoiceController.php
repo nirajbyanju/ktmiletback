@@ -262,11 +262,12 @@ class InvoiceController extends Controller
         }
 
         $request->validate([
-            'screenshot' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            // Allow images and PDF bank receipts. 'image' rule is removed because it rejects PDFs.
+            'screenshot' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
         ]);
 
         $file = $request->file('screenshot');
-        $path = $file->store('payment_screenshots/' . $request->user()->id, 'local');
+        $path = $file->store('payment_screenshots/' . $invoice->id, 'public');
 
         $invoice->update([
             'payment_screenshot_path' => $path,
@@ -365,6 +366,39 @@ class InvoiceController extends Controller
                 'examBookingEnrollment.examBooking',
                 'user:id,name,first_name,last_name,email,phone',
             ]),
+        ]);
+    }
+
+    // -- Serve payment screenshot (owner or admin) -------------------------
+
+    public function serveScreenshot(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\JsonResponse
+    {
+        $this->authorizeInvoiceAccess($request, $invoice);
+
+        $path = $invoice->payment_screenshot_path;
+
+        if (!$path) {
+            return response()->json(['success' => false, 'message' => 'Screenshot not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        // New uploads use 'public' disk; legacy uploads (before disk fix) used 'local'.
+        if (Storage::disk('public')->exists($path)) {
+            $disk = 'public';
+        } elseif (Storage::disk('local')->exists($path)) {
+            $disk = 'local';
+        } else {
+            return response()->json(['success' => false, 'message' => 'Screenshot not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $mime     = Storage::disk($disk)->mimeType($path) ?: 'image/jpeg';
+        $contents = Storage::disk($disk)->get($path);
+
+        return response()->stream(function () use ($contents) {
+            echo $contents;
+        }, 200, [
+            'Content-Type'        => $mime,
+            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
+            'Cache-Control'       => 'private, max-age=3600',
         ]);
     }
 

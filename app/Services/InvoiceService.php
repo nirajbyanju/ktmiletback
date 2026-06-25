@@ -31,8 +31,9 @@ class InvoiceService
         if ($offerDiscount > 0) {
             $amounts['discount_npr'] = $amounts['discount_npr'] + $offerDiscount;
             $afterDiscount           = max(0.0, $amounts['subtotal_npr'] - $amounts['discount_npr']);
-            $amounts['tax_npr']      = round($afterDiscount * 0.13, 2); // recalculate VAT on true after-discount amount
-            $amounts['total_npr']    = round($afterDiscount + $amounts['tax_npr'], 2);
+            // Price is VAT-inclusive: extract tax portion = (total * 100) / 113 gives taxable, remainder is VAT
+            $amounts['tax_npr']      = round($afterDiscount - ($afterDiscount * 100 / 113), 2);
+            $amounts['total_npr']    = $afterDiscount; // total stays the same (VAT already inside)
         }
 
         return DB::transaction(function () use ($batch, $user, $data, $amounts, $claim) {
@@ -429,13 +430,15 @@ class InvoiceService
         $subtotal      = (float) ($batch->price_npr ?? 0);
         $discount      = $this->discountAmount($batch, $subtotal);
         $afterDiscount = max(0.0, $subtotal - $discount);
-        $tax           = round($afterDiscount * 0.13, 2); // 13% VAT
+        // Price is VAT-inclusive: Taxable = (total * 100) / 113 ; VAT = total − taxable
+        $taxable       = round($afterDiscount * 100 / 113, 2);
+        $tax           = round($afterDiscount - $taxable, 2);
 
         return [
             'subtotal_npr' => $subtotal,
             'discount_npr' => $discount,
             'tax_npr'      => $tax,
-            'total_npr'    => round($afterDiscount + $tax, 2),
+            'total_npr'    => $afterDiscount, // VAT already included — do NOT add again
         ];
     }
 

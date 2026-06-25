@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\UpdateProfilePictureRequest;
 use App\Http\Requests\UpdateUserProfileRequest;
+use App\Models\UserDetail;
 use App\Services\UserProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class UserProfileController extends BaseController
 {
@@ -100,6 +102,36 @@ class UserProfileController extends BaseController
             'success' => true,
             'message' => 'Profile picture removed.',
             'data'    => $this->userProfileService->deleteProfilePicture($request->user()),
+        ]);
+    }
+
+    public function serveProfilePicture(Request $request, int $userId): mixed
+    {
+        $detail = UserDetail::where('user_id', $userId)->first();
+
+        $path = $detail?->profile_picture;
+
+        if (!$path || str_starts_with($path, 'http')) {
+            abort(404);
+        }
+
+        // Check public disk first, then local (legacy uploads)
+        if (Storage::disk('public')->exists($path)) {
+            $disk = 'public';
+        } elseif (Storage::disk('local')->exists($path)) {
+            $disk = 'local';
+        } else {
+            abort(404);
+        }
+
+        $mime     = Storage::disk($disk)->mimeType($path) ?: 'image/jpeg';
+        $contents = Storage::disk($disk)->get($path);
+
+        return response()->stream(function () use ($contents) {
+            echo $contents;
+        }, 200, [
+            'Content-Type'  => $mime,
+            'Cache-Control' => 'public, max-age=86400',
         ]);
     }
 }

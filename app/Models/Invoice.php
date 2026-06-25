@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\OfferClaim;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Invoice extends Model
 {
@@ -23,7 +24,7 @@ class Invoice extends Model
     public const TYPE_MOCK_TEST = 'mock_test';
     public const TYPE_EXAM      = 'exam';
 
-    protected $appends = ['type'];
+    protected $appends = ['type', 'screenshot_url'];
 
     protected $fillable = [
         'invoice_number',
@@ -75,6 +76,13 @@ class Invoice extends Model
         'updated_by'                 => 'integer',
         'deleted_by'                 => 'integer',
     ];
+
+    // Authenticated API URL for the payment screenshot — works on all environments
+    public function getScreenshotUrlAttribute(): ?string
+    {
+        if (!$this->payment_screenshot_path) return null;
+        return url("/api/v1/invoices/{$this->id}/screenshot");
+    }
 
     // Derived type based on which FK is set
     public function getTypeAttribute(): string

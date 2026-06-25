@@ -49,7 +49,7 @@ Route::prefix('v1')->group(function () {
         // Authentication routes
         Route::prefix('auth')->as('auth.')->group(function () {
             Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1')->name('register');
-            Route::post('/admin/register', [AuthController::class, 'adminRegister'])->middleware('auth:sanctum')->name('admin.register');
+            Route::post('/admin/register', [AuthController::class, 'adminRegister'])->middleware(['auth:sanctum', 'role:Admin|Super Admin'])->name('admin.register');
             Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
             Route::post('/refresh', [AuthController::class, 'refreshToken'])->middleware('throttle:20,1')->name('refresh');
             Route::post('/forgot-password', [AuthController::class, 'sendResetLinkEmail'])->middleware('throttle:5,1')->name('password.email');
@@ -73,6 +73,9 @@ Route::prefix('v1')->group(function () {
 
         // Offers — public listing (active & not expired)
         Route::get('/offers', [OfferController::class, 'publicIndex'])->name('offers.public');
+
+        // Profile picture serving — public, no auth required (bypasses symlink issue on Windows)
+        Route::get('/users/{userId}/profile-picture', [UserProfileController::class, 'serveProfilePicture'])->name('user.profile-picture.serve');
     });
 
     // ==================== AUTHENTICATED ROUTES ====================
@@ -184,6 +187,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
         Route::patch('invoices/{invoice}/refund', [InvoiceController::class, 'refund'])->name('invoices.refund');
         Route::post('invoices/{invoice}/payment-screenshot', [InvoiceController::class, 'uploadScreenshot'])->name('invoices.screenshot.upload');
+        Route::get('invoices/{invoice}/screenshot', [InvoiceController::class, 'serveScreenshot'])->name('invoices.screenshot.serve');
 
         // ==================== CONTACT MESSAGES (admin) ====================
         Route::get('admin/contact-messages', [ContactMessageController::class, 'adminIndex'])->name('admin.contact-messages.index');
