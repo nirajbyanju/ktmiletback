@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Batch;
 use App\Models\Enrollment;
+use App\Models\Invoice;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -64,7 +66,51 @@ class EnrollmentController extends Controller
     {
         $this->authorizeManageAll($request);
 
-        $enrollment = Enrollment::create($this->validated($request));
+        $validated = $this->validated($request);
+
+        // ── Duplicate guard (admin path) ───────────────────────────────────────
+        // Prevent admins from accidentally creating a second active enrollment
+        // for the same student in the same course.
+        if (!empty($validated['user_id']) && !empty($validated['batch_id'])) {
+            $batch    = Batch::findOrFail($validated['batch_id']);
+            $courseId = $batch->course_id;
+            $userId   = $validated['user_id'];
+
+            $today = now()->toDateString();
+
+            // Check A: existing active enrollment
+            $hasActiveEnrollment = Enrollment::where('user_id', $userId)
+                ->whereNotIn('crm_status', ['completed', 'dropped'])
+                ->whereHas('batch', function ($q) use ($courseId, $today) {
+                    $q->where('course_id', $courseId)
+                      ->where(function ($q2) use ($today) {
+                          $q2->whereNull('end_date')
+                             ->orWhere('end_date', '>=', $today);
+                      });
+                })
+                ->exists();
+
+            // Check B: paid invoice for same course (unexpired batch)
+            $hasPaidCourseInvoice = Invoice::where('user_id', $userId)
+                ->where('status', Invoice::STATUS_PAID)
+                ->whereHas('batch', function ($q) use ($courseId, $today) {
+                    $q->where('course_id', $courseId)
+                      ->where(function ($q2) use ($today) {
+                          $q2->whereNull('end_date')
+                             ->orWhere('end_date', '>=', $today);
+                      });
+                })
+                ->exists();
+
+            if ($hasActiveEnrollment || $hasPaidCourseInvoice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This student already has an active enrollment in this course. They can re-enroll once the current enrollment expires.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        $enrollment = Enrollment::create($validated);
 
         return response()->json([
             'success' => true,

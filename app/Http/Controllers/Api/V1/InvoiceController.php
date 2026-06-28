@@ -96,15 +96,42 @@ class InvoiceController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $alreadyEnrolled = Enrollment::where('user_id', $request->user()->id)
-            ->where('batch_id', $batch->id)
-            ->whereIn('crm_status', ['active', 'completed'])
+        // ── Duplicate active-course-enrollment guard ───────────────────────────
+        // A student may hold only ONE active enrollment per course at a time.
+        // "Active" = the batch has not yet ended (end_date >= today or no end_date)
+        //            AND the enrollment has not been completed or dropped.
+        //
+        // We run TWO independent checks so neither path can be bypassed:
+        //
+        // Check A — enrollment record (covers admin-activated enrollments)
+        $hasActiveEnrollment = Enrollment::where('user_id', $request->user()->id)
+            ->whereNotIn('crm_status', ['completed', 'dropped'])
+            ->whereHas('batch', function ($q) use ($batch) {
+                $q->where('course_id', $batch->course_id)
+                  ->where(function ($q2) {
+                      $q2->whereNull('end_date')
+                         ->orWhere('end_date', '>=', now()->toDateString());
+                  });
+            })
             ->exists();
 
-        if ($alreadyEnrolled) {
+        // Check B — paid invoice (catches cases where enrollment user_id was not set,
+        //           or enrollment was created via a different path without a record)
+        $hasPaidCourseInvoice = Invoice::where('user_id', $request->user()->id)
+            ->where('status', Invoice::STATUS_PAID)
+            ->whereHas('batch', function ($q) use ($batch) {
+                $q->where('course_id', $batch->course_id)
+                  ->where(function ($q2) {
+                      $q2->whereNull('end_date')
+                         ->orWhere('end_date', '>=', now()->toDateString());
+                  });
+            })
+            ->exists();
+
+        if ($hasActiveEnrollment || $hasPaidCourseInvoice) {
             return response()->json([
                 'success' => false,
-                'message' => 'You are already enrolled in this batch. Contact admin if you need assistance.',
+                'message' => 'You already have an active enrollment in this course. You can re-enroll once your current enrollment expires.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 

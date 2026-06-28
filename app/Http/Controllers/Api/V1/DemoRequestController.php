@@ -20,11 +20,11 @@ class DemoRequestController extends BaseController
         $user = $request->user();
 
         $validated = $request->validate([
-            'course_name'     => 'nullable|string|max:255',
-            'course_id'       => 'nullable|integer',
-            'education_level' => 'required|string|max:100',
-            'pass_year'       => 'nullable|string|max:10',
-            'phone'           => 'nullable|string|max:20',
+            'course_name'  => 'nullable|string|max:255',
+            'course_id'    => 'nullable|integer',
+            'phone'        => 'required|string|max:20',
+            'country'      => 'nullable|string|max:100',
+            'preferred_at' => 'nullable|string|max:255',
         ]);
 
         $existing = DemoRequest::where('user_id', $user->id)

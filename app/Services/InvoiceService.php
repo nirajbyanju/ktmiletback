@@ -289,6 +289,29 @@ class InvoiceService
     private function activateCourseEnrollment(Invoice $invoice): void
     {
         $teacherName = $invoice->batch?->teacher?->name ?? null;
+        $courseId    = $invoice->batch?->course_id;
+
+        // Safety guard: skip if the student already has a non-expired, active enrollment
+        // in the same course (e.g. admin manually marks a duplicate invoice as paid).
+        if ($courseId) {
+            $conflict = Enrollment::where('user_id', $invoice->user_id)
+                ->where('invoice_id', '!=', $invoice->id)
+                ->whereNotIn('crm_status', ['completed', 'dropped'])
+                ->whereHas('batch', function ($q) use ($courseId) {
+                    $q->where('course_id', $courseId)
+                      ->where(function ($q2) {
+                          $q2->whereNull('end_date')
+                             ->orWhere('end_date', '>=', now()->toDateString());
+                      });
+                })
+                ->exists();
+
+            if ($conflict) {
+                // Do not create a second active enrollment; leave a note on the invoice.
+                $invoice->update(['notes' => trim(($invoice->notes ?? '') . "\n[System] Enrollment skipped: student already has an active enrollment in this course.")]);
+                return;
+            }
+        }
 
         Enrollment::updateOrCreate(
             ['invoice_id' => $invoice->id],
