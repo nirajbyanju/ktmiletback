@@ -135,6 +135,23 @@ class InvoiceController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // ── Duplicate pending-invoice guard ───────────────────────────────────────
+        // If the student already has an unpaid invoice for this exact batch,
+        // return it instead of creating a second duplicate.
+        $existingUnpaid = Invoice::where('user_id', $request->user()->id)
+            ->where('batch_id', $batch->id)
+            ->where('status', Invoice::STATUS_UNPAID)
+            ->latest('id')
+            ->first();
+
+        if ($existingUnpaid) {
+            return response()->json([
+                'success' => true,
+                'message' => 'You already have a pending invoice for this batch.',
+                'data'    => $existingUnpaid,
+            ]);
+        }
+
         $invoice = $this->invoiceService->createForBatch($batch, $request->user(), $data);
 
         $this->notifications->notifyInvoiceCreated($invoice, $request->user());
@@ -164,6 +181,34 @@ class InvoiceController extends Controller
                 'success' => false,
                 'message' => 'This subscription has no price set. Contact admin.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // ── Duplicate paid-subscription guard ─────────────────────────────────────
+        $alreadyPaid = Invoice::where('user_id', $request->user()->id)
+            ->where('mock_test_subscription_id', $subscription->id)
+            ->where('status', Invoice::STATUS_PAID)
+            ->exists();
+
+        if ($alreadyPaid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You already have an active subscription for this mock test plan. Contact admin if you need assistance.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // ── Duplicate pending-invoice guard ───────────────────────────────────────
+        $existingUnpaid = Invoice::where('user_id', $request->user()->id)
+            ->where('mock_test_subscription_id', $subscription->id)
+            ->where('status', Invoice::STATUS_UNPAID)
+            ->latest('id')
+            ->first();
+
+        if ($existingUnpaid) {
+            return response()->json([
+                'success' => true,
+                'message' => 'You already have a pending invoice for this mock test plan.',
+                'data'    => $existingUnpaid,
+            ]);
         }
 
         $invoice = $this->invoiceService->createForMockTest($subscription, $request->user(), $data);

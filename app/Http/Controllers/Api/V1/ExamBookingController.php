@@ -82,6 +82,66 @@ class ExamBookingController extends BaseController
         ], 201);
     }
 
+    // ── User: edit own enrollment (only while status is new_request / document_pending) ──
+
+    public function userUpdate(Request $request, int $id): JsonResponse
+    {
+        $enrollment = ExamBookingEnrollment::where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $editableStatuses = ['new_request', 'document_pending'];
+        if (!in_array($enrollment->status, $editableStatuses)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This booking can no longer be edited because the admin has already started processing it.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $validated = $request->validate([
+            'preferred_date'        => 'required|date|after_or_equal:today',
+            'preferred_time'        => 'nullable|date_format:H:i',
+            'preferred_test_centre' => 'required|string|max:255',
+            'passport_name'         => 'required|string|max:255',
+            'passport_number'       => 'required|string|max:50',
+            'date_of_birth'         => 'required|date|before:today',
+            'phone'                 => 'required|string|max:20',
+            'email'                 => 'required|email|max:255',
+            'special_message'       => 'nullable|string|max:1000',
+            'passport_copy'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $enrollment->update([
+            'preferred_date'        => $validated['preferred_date'],
+            'preferred_time'        => $validated['preferred_time'] ?? null,
+            'preferred_test_centre' => $validated['preferred_test_centre'],
+            'test_location'         => $validated['preferred_test_centre'],
+            'passport_name'         => $validated['passport_name'],
+            'passport_number'       => $validated['passport_number'],
+            'date_of_birth'         => $validated['date_of_birth'],
+            'contact_number'        => $validated['phone'],
+            'phone'                 => $validated['phone'],
+            'email'                 => $validated['email'],
+            'special_message'       => $validated['special_message'] ?? null,
+        ]);
+
+        if ($request->hasFile('passport_copy')) {
+            $file = $request->file('passport_copy');
+            $enrollment->update([
+                'passport_copy_path'          => $file->store('passport_copies/' . $request->user()->id, 'local'),
+                'passport_copy_original_name' => $file->getClientOriginalName(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking updated successfully.',
+            'data'    => $enrollment->fresh([
+                'examBooking:id,exam_name,exam_type,price,discount',
+                'invoice:id,invoice_number,status,total_npr',
+            ]),
+        ]);
+    }
+
     // ── User: list own enrollments ────────────────────────────────────────────
 
     public function userIndex(Request $request): JsonResponse

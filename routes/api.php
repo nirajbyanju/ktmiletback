@@ -205,6 +205,7 @@ Route::prefix('v1')->group(function () {
         // ==================== EXAM BOOKING ENROLLMENTS ====================
         Route::get('exam-bookings', [ExamBookingController::class, 'userIndex'])->name('exam-bookings.user-index');
         Route::post('exam-bookings', [ExamBookingController::class, 'store'])->name('exam-bookings.store');
+        Route::post('exam-bookings/{id}/update', [ExamBookingController::class, 'userUpdate'])->name('exam-bookings.user-update');
         Route::get('exam-bookings/{id}/passport', [ExamBookingController::class, 'downloadPassport'])->name('exam-bookings.passport');
         Route::get('admin/exam-bookings/stats', [ExamBookingController::class, 'adminStats'])->name('admin.exam-bookings.stats');
         Route::get('admin/exam-bookings', [ExamBookingController::class, 'adminIndex'])->name('admin.exam-bookings.index');
