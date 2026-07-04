@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             // Core setup
             MenuSeeder::class,
             RolePermissionSeeder::class,
+            PaymentStatusSeeder::class,
             UserSeeder::class,
 
             // // Users

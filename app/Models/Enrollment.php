@@ -48,7 +48,18 @@ class Enrollment extends Model
     ];
 
     public const CRM_STATUSES   = ['lead', 'prospect', 'active', 'inactive', 'completed', 'dropped'];
-    public const PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'waived', 'refunded'];
+
+    // Keys must match payment_statuses.key in the database
+    public const PAYMENT_STATUSES = [
+        'action_required',
+        'under_review',
+        'not_verified',
+        'fee_waived',
+        'confirmed',
+        'refund_under_review',
+        'refund_not_approved',
+        'refund_completed',
+    ];
 
     protected $attributes = [
         'enrollment_date' => null,

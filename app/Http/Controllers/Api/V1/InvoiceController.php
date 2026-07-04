@@ -7,6 +7,7 @@ use App\Models\Batch;
 use App\Models\Enrollment;
 use App\Models\ExamBookingEnrollment;
 use App\Models\Invoice;
+use App\Models\InvoiceScreenshot;
 use App\Models\MockTestSubscription;
 use App\Services\AdminNotificationService;
 use App\Services\InvoiceService;
@@ -47,6 +48,11 @@ class InvoiceController extends Controller
                 'exam'      => $query->whereNotNull('exam_booking_enrollment_id'),
                 default     => null,
             };
+        }
+
+        // Only invoices that have no linked enrollment record yet
+        if ($request->boolean('no_enrollment')) {
+            $query->doesntHave('enrollment');
         }
 
         $invoices = $query->paginate(min(max((int) $request->query('limit', 10), 1), 100));
@@ -97,15 +103,14 @@ class InvoiceController extends Controller
         }
 
         // ── Duplicate active-course-enrollment guard ───────────────────────────
-        // A student may hold only ONE active enrollment per course at a time.
-        // "Active" = the batch has not yet ended (end_date >= today or no end_date)
-        //            AND the enrollment has not been completed or dropped.
+        // Block only CONFIRMED (paid) enrollments. Pending enrollments
+        // (payment_status='action_required', crm_status='prospect') are created at
+        // invoice-generation time and must NOT block the student from paying or
+        // re-accessing their existing unpaid invoice (handled by $existingUnpaid below).
         //
-        // We run TWO independent checks so neither path can be bypassed:
-        //
-        // Check A — enrollment record (covers admin-activated enrollments)
+        // Check A — confirmed enrollment record in the same course
         $hasActiveEnrollment = Enrollment::where('user_id', $request->user()->id)
-            ->whereNotIn('crm_status', ['completed', 'dropped'])
+            ->where('payment_status', 'confirmed')
             ->whereHas('batch', function ($q) use ($batch) {
                 $q->where('course_id', $batch->course_id)
                   ->where(function ($q2) {
@@ -115,8 +120,7 @@ class InvoiceController extends Controller
             })
             ->exists();
 
-        // Check B — paid invoice (catches cases where enrollment user_id was not set,
-        //           or enrollment was created via a different path without a record)
+        // Check B — paid invoice for same course (backup guard)
         $hasPaidCourseInvoice = Invoice::where('user_id', $request->user()->id)
             ->where('status', Invoice::STATUS_PAID)
             ->whereHas('batch', function ($q) use ($batch) {
@@ -145,6 +149,20 @@ class InvoiceController extends Controller
             ->first();
 
         if ($existingUnpaid) {
+            // Ensure the pending enrollment exists even for invoices created before this logic was added.
+            Enrollment::firstOrCreate(
+                ['invoice_id' => $existingUnpaid->id],
+                [
+                    'user_id'        => $request->user()->id,
+                    'student_name'   => $request->user()->display_name ?? $request->user()->name ?? $request->user()->email ?? 'Student',
+                    'batch_id'       => $batch->id,
+                    'status'         => 'inactive',
+                    'crm_status'     => 'prospect',
+                    'payment_status' => 'action_required',
+                    'amount_paid'    => 0,
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'You already have a pending invoice for this batch.',
@@ -322,7 +340,8 @@ class InvoiceController extends Controller
     {
         $this->authorizeInvoiceAccess($request, $invoice);
 
-        if ($invoice->user_id !== $request->user()->id) {
+        // Students may only upload for their own invoices; admins may upload for any invoice.
+        if (!$this->canManageInvoices($request) && $invoice->user_id !== $request->user()->id) {
             abort(Response::HTTP_FORBIDDEN, 'You cannot upload a screenshot for this invoice.');
         }
 
@@ -341,9 +360,19 @@ class InvoiceController extends Controller
         $file = $request->file('screenshot');
         $path = $file->store('payment_screenshots/' . $invoice->id, 'public');
 
+        // ── Save to screenshot history (never overwrite, always append) ────────
+        InvoiceScreenshot::create([
+            'invoice_id'  => $invoice->id,
+            'file_path'   => $path,
+            'uploaded_by' => $request->user()->id,
+        ]);
+
+        // ── Update invoice with latest screenshot ─────────────────────────────
         $invoice->update([
             'payment_screenshot_path' => $path,
             'screenshot_uploaded_at'  => now(),
+            // Auto-advance CRM status so both dashboards immediately show "Payment Under Review"
+            'crm_payment_status'      => 'under_review',
         ]);
 
         $this->notifications->notifyScreenshotUploaded($invoice->fresh(), $request->user());
@@ -357,6 +386,21 @@ class InvoiceController extends Controller
                 'examBookingEnrollment.examBooking',
                 'user:id,name,first_name,last_name,email,phone',
             ]),
+        ]);
+    }
+
+    // -- Screenshot upload history (student sees own, admin sees all) ------
+
+    public function getScreenshotHistory(Request $request, Invoice $invoice): JsonResponse
+    {
+        if (!$this->canManageInvoices($request) && $invoice->user_id !== $request->user()->id) {
+            abort(Response::HTTP_FORBIDDEN, 'You cannot access this invoice.');
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Screenshot history retrieved.',
+            'data'    => $invoice->screenshots()->get(),
         ]);
     }
 
@@ -471,6 +515,36 @@ class InvoiceController extends Controller
             'Content-Type'        => $mime,
             'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
             'Cache-Control'       => 'private, max-age=3600',
+        ]);
+    }
+
+    // -- Update CRM payment status (admin only) ----------------------------
+
+    public function updateCrmStatus(Request $request, Invoice $invoice): JsonResponse
+    {
+        if (!$this->canManageInvoices($request)) {
+            abort(Response::HTTP_FORBIDDEN, 'Only admins can update the payment CRM status.');
+        }
+
+        $data = $request->validate([
+            'crm_payment_status' => [
+                'required',
+                'string',
+                'in:action_required,under_review,not_verified,fee_waived,confirmed,refund_under_review,refund_not_approved,refund_completed',
+            ],
+        ]);
+
+        $invoice->update(['crm_payment_status' => $data['crm_payment_status']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment status updated successfully.',
+            'data'    => $invoice->fresh([
+                'batch.course',
+                'mockTestSubscription',
+                'examBookingEnrollment.examBooking',
+                'user:id,name,first_name,last_name,email,phone',
+            ]),
         ]);
     }
 

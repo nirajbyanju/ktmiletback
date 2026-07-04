@@ -50,22 +50,37 @@ class InvoiceService
                     'payment_method' => $data['payment_method'] ?? $invoice->payment_method ?? 'bank_qr',
                     'notes'          => $data['notes'] ?? $invoice->notes,
                 ]);
-
-                return $invoice->fresh(['batch.course:id,course_name', 'user:id,name,first_name,last_name,email,phone']);
+            } else {
+                $invoice = Invoice::create([
+                    'invoice_number' => $this->nextInvoiceNumber(),
+                    'user_id'        => $user->id,
+                    'batch_id'       => $batch->id,
+                    'offer_claim_id' => $claim?->id,
+                    ...$amounts,
+                    'status'         => Invoice::STATUS_UNPAID,
+                    'payment_method' => $data['payment_method'] ?? 'bank_qr',
+                    'invoice_date'   => now()->toDateString(),
+                    'due_date'       => now()->addDays(3)->toDateString(),
+                    'notes'          => $data['notes'] ?? null,
+                ]);
             }
 
-            return Invoice::create([
-                'invoice_number' => $this->nextInvoiceNumber(),
-                'user_id'        => $user->id,
-                'batch_id'       => $batch->id,
-                'offer_claim_id' => $claim?->id,
-                ...$amounts,
-                'status'         => Invoice::STATUS_UNPAID,
-                'payment_method' => $data['payment_method'] ?? 'bank_qr',
-                'invoice_date'   => now()->toDateString(),
-                'due_date'       => now()->addDays(3)->toDateString(),
-                'notes'          => $data['notes'] ?? null,
-            ])->load(['batch.course:id,course_name', 'user:id,name,first_name,last_name,email,phone']);
+            // Create a pending enrollment record so admin can see unpaid students immediately.
+            // activateCourseEnrollment() will upgrade this record (updateOrCreate by invoice_id) when paid.
+            Enrollment::firstOrCreate(
+                ['invoice_id' => $invoice->id],
+                [
+                    'user_id'        => $user->id,
+                    'student_name'   => $user->display_name ?? $user->name ?? $user->email ?? 'Student',
+                    'batch_id'       => $batch->id,
+                    'status'         => 'inactive',
+                    'crm_status'     => 'prospect',
+                    'payment_status' => 'action_required',
+                    'amount_paid'    => 0,
+                ]
+            );
+
+            return $invoice->fresh(['batch.course:id,course_name', 'user:id,name,first_name,last_name,email,phone']);
         });
     }
 
@@ -199,6 +214,7 @@ class InvoiceService
             // 1. Update invoice to refunded state
             $invoice->update([
                 'status'              => Invoice::STATUS_REFUNDED,
+                'crm_payment_status'  => 'refund_completed',
                 'refunded_amount_npr' => $refundAmount,
                 'refund_reason'       => $reason,
                 'refunded_at'         => now(),
@@ -232,7 +248,7 @@ class InvoiceService
         $invoice->enrollment->update([
             'status'         => 'inactive',
             'crm_status'     => 'dropped',
-            'payment_status' => 'refunded',
+            'payment_status' => 'refund_completed',
         ]);
     }
 
@@ -255,10 +271,11 @@ class InvoiceService
     {
         return DB::transaction(function () use ($invoice, $admin, $notes) {
             $invoice->update([
-                'status'      => Invoice::STATUS_PAID,
-                'verified_at' => now(),
-                'verified_by' => $admin->id,
-                'notes'       => $notes ?: $invoice->notes,
+                'status'             => Invoice::STATUS_PAID,
+                'crm_payment_status' => 'confirmed',
+                'verified_at'        => now(),
+                'verified_by'        => $admin->id,
+                'notes'              => $notes ?: $invoice->notes,
             ]);
 
             // Lock the offer claim so it cannot be reused on another invoice
@@ -323,7 +340,7 @@ class InvoiceService
                 'amount_paid'     => $invoice->total_npr,
                 'status'          => 'active',
                 'crm_status'      => 'active',
-                'payment_status'  => 'paid',
+                'payment_status'  => 'confirmed',
                 'teacher'         => $teacherName,
             ]
         );

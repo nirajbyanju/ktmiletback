@@ -78,9 +78,9 @@ class EnrollmentController extends Controller
 
             $today = now()->toDateString();
 
-            // Check A: existing active enrollment
+            // Check A: confirmed (paid) enrollment only — prospect/pending do not block
             $hasActiveEnrollment = Enrollment::where('user_id', $userId)
-                ->whereNotIn('crm_status', ['completed', 'dropped'])
+                ->where('payment_status', 'confirmed')
                 ->whereHas('batch', function ($q) use ($courseId, $today) {
                     $q->where('course_id', $courseId)
                       ->where(function ($q2) use ($today) {
@@ -151,8 +151,8 @@ class EnrollmentController extends Controller
             'success' => true,
             'data' => [
                 'total'         => Enrollment::count(),
-                'paid'          => Enrollment::where('payment_status', 'paid')->count(),
-                'payment_due'   => Enrollment::where('payment_status', 'pending')->count(),
+                'paid'          => Enrollment::where('payment_status', 'confirmed')->count(),
+                'payment_due'   => Enrollment::whereIn('payment_status', ['action_required', 'under_review', 'not_verified'])->count(),
                 'completed'     => Enrollment::where('crm_status', 'completed')->count(),
                 'cert_eligible' => Enrollment::where('certificate_eligible', true)->count(),
             ],
@@ -168,7 +168,7 @@ class EnrollmentController extends Controller
             'batch:id,course_id,batch_type,class_time,class_link,start_date,end_date,schedule_notes,is_active,teacher_id',
             'batch.course:id,course_name',
             'batch.teacher:id,name,email,phone',
-            'invoice:id,invoice_number,status,total_npr',
+            'invoice:id,invoice_number,status,total_npr,payment_screenshot_path,crm_payment_status,screenshot_uploaded_at',
         ])->latest('id');
 
         if ($request->filled('crm_status')) {

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\OfferClaim;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -38,6 +39,7 @@ class Invoice extends Model
         'tax_npr',
         'total_npr',
         'status',
+        'crm_payment_status',
         'payment_method',
         'invoice_date',
         'due_date',
@@ -138,5 +140,11 @@ class Invoice extends Model
     public function mockTestEnrollment(): HasOne
     {
         return $this->hasOne(MockTestEnrollment::class);
+    }
+
+    // Full screenshot upload history (latest first)
+    public function screenshots(): HasMany
+    {
+        return $this->hasMany(InvoiceScreenshot::class)->latest();
     }
 }

@@ -58,6 +58,21 @@ class DemoRequestController extends BaseController
     }
 
     /**
+     * Authenticated user — their own demo requests.
+     */
+    public function userIndex(Request $request): JsonResponse
+    {
+        $requests = DemoRequest::where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $requests,
+        ]);
+    }
+
+    /**
      * Admin — paginated list with search and status filter.
      */
     public function adminIndex(Request $request): JsonResponse

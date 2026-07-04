@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\UserAccessController;
 use App\Http\Controllers\MenusController;
 use App\Http\Controllers\Api\V1\BatchController;
+use App\Http\Controllers\Api\V1\BatchTypeController;
 use App\Http\Controllers\Api\V1\CourseCatalogController;
 use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\CourseModuleController;
@@ -143,6 +144,12 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('courses', CourseController::class);
         Route::apiResource('batches', BatchController::class);
 
+        // ==================== BATCH TYPES ====================
+        Route::get('batch-types',                    [BatchTypeController::class, 'index'])->name('batch-types.index');
+        Route::post('batch-types',                   [BatchTypeController::class, 'store'])->name('batch-types.store');
+        Route::patch('batch-types/{batchType}',      [BatchTypeController::class, 'update'])->name('batch-types.update');
+        Route::delete('batch-types/{batchType}',     [BatchTypeController::class, 'destroy'])->name('batch-types.destroy');
+
         // Course modules (nested under courses)
         Route::get('courses/{courseId}/modules', [CourseModuleController::class, 'index'])->name('courses.modules.index');
         Route::post('courses/{courseId}/modules', [CourseModuleController::class, 'store'])->name('courses.modules.store');
@@ -188,6 +195,8 @@ Route::prefix('v1')->group(function () {
         Route::patch('invoices/{invoice}/refund', [InvoiceController::class, 'refund'])->name('invoices.refund');
         Route::post('invoices/{invoice}/payment-screenshot', [InvoiceController::class, 'uploadScreenshot'])->name('invoices.screenshot.upload');
         Route::get('invoices/{invoice}/screenshot', [InvoiceController::class, 'serveScreenshot'])->name('invoices.screenshot.serve');
+        Route::get('invoices/{invoice}/screenshots', [InvoiceController::class, 'getScreenshotHistory'])->name('invoices.screenshots.history');
+        Route::patch('invoices/{invoice}/crm-status', [InvoiceController::class, 'updateCrmStatus'])->name('invoices.crm-status.update');
 
         // ==================== CONTACT MESSAGES (admin) ====================
         Route::get('admin/contact-messages', [ContactMessageController::class, 'adminIndex'])->name('admin.contact-messages.index');
@@ -257,6 +266,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/user/menu', [MenusController::class, 'getMenu'])->name('user.menu');
 
         // ==================== DEMO REQUESTS ====================
+        Route::get('demo-requests', [DemoRequestController::class, 'userIndex'])->name('demo-requests.index');
         Route::post('demo-requests', [DemoRequestController::class, 'store'])->name('demo-requests.store');
         Route::get('admin/demo-requests/stats', [DemoRequestController::class, 'stats'])->name('admin.demo-requests.stats');
         Route::get('admin/demo-requests', [DemoRequestController::class, 'adminIndex'])->name('admin.demo-requests.index');
