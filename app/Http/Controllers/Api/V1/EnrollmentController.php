@@ -7,8 +7,10 @@ use App\Models\Batch;
 use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Services\AdminNotificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class EnrollmentController extends Controller
@@ -239,6 +241,96 @@ class EnrollmentController extends Controller
             'success' => true,
             'message' => 'Student record updated.',
             'data'    => $enrollment->fresh(['user:id,first_name,last_name,email,phone', 'batch.course:id,course_name']),
+        ]);
+    }
+
+    // ── Student: change batch (only when action_required) ────────────────────
+
+    public function changeBatch(Request $request, int $id): JsonResponse
+    {
+        $enrollment = Enrollment::with(['invoice', 'batch.course'])
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if ($enrollment->payment_status !== 'action_required') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Batch can only be changed when payment status is Action Required.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $data = $request->validate([
+            'batch_id' => ['required', 'integer', 'exists:batches,id'],
+        ]);
+
+        if ((int) $enrollment->batch_id === (int) $data['batch_id']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already enrolled in this batch.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $newBatch = Batch::with('course')->where('is_active', true)->findOrFail($data['batch_id']);
+
+        // Cancel old invoice if it is still unpaid
+        $oldInvoice = $enrollment->invoice;
+        if ($oldInvoice && $oldInvoice->status === Invoice::STATUS_UNPAID) {
+            $oldInvoice->update(['status' => Invoice::STATUS_CANCELLED]);
+        }
+
+        // Compute pricing for new batch
+        $subtotal = (float) ($newBatch->price_npr ?? 0);
+        $discount = 0.0;
+        if ($newBatch->offer_label && $newBatch->discount_type && $newBatch->discount_value) {
+            $value    = (float) $newBatch->discount_value;
+            $discount = $newBatch->discount_type === 'percent'
+                ? round($subtotal * min($value, 100) / 100, 2)
+                : min($subtotal, $value);
+        }
+        $afterDiscount = max(0.0, $subtotal - $discount);
+        $taxable       = round($afterDiscount * 100 / 113, 2);
+        $tax           = round($afterDiscount - $taxable, 2);
+
+        // Generate unique invoice number
+        do {
+            $invoiceNumber = 'INV-' . now()->format('Ymd') . '-' . Str::upper(Str::random(6));
+        } while (Invoice::where('invoice_number', $invoiceNumber)->exists());
+
+        // Create new invoice for new batch
+        $newInvoice = Invoice::create([
+            'invoice_number'     => $invoiceNumber,
+            'user_id'            => $request->user()->id,
+            'batch_id'           => $newBatch->id,
+            'subtotal_npr'       => $subtotal,
+            'discount_npr'       => $discount,
+            'tax_npr'            => $tax,
+            'total_npr'          => $afterDiscount,
+            'status'             => Invoice::STATUS_UNPAID,
+            'crm_payment_status' => 'action_required',
+            'payment_method'     => 'bank_qr',
+            'invoice_date'       => now()->toDateString(),
+            'due_date'           => now()->addDays(3)->toDateString(),
+        ]);
+
+        // Update enrollment: new batch + new invoice
+        $enrollment->update([
+            'batch_id'       => $newBatch->id,
+            'invoice_id'     => $newInvoice->id,
+            'payment_status' => 'action_required',
+            'crm_status'     => 'prospect',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Batch changed successfully. New invoice generated.',
+            'data'    => [
+                'enrollment' => $enrollment->fresh([
+                    'batch:id,course_id,batch_type,class_time,class_link,start_date,end_date,schedule_notes,teacher_id,is_active',
+                    'batch.course:id,course_name',
+                    'invoice:id,invoice_number,status,total_npr',
+                ]),
+                'invoice' => $newInvoice->load(['batch.course:id,course_name']),
+            ],
         ]);
     }
 

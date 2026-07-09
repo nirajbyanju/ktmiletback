@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Models\ExamBooking;
 use App\Models\ExamBookingEnrollment;
+use App\Services\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,10 @@ use Illuminate\Validation\Rule;
 
 class ExamBookingController extends BaseController
 {
+    public function __construct(
+        private readonly InvoiceService $invoiceService,
+    ) {}
+
     // ── Public: browse available plans ───────────────────────────────────────
 
     public function userPlanIndex(Request $request): JsonResponse
@@ -73,12 +78,31 @@ class ExamBookingController extends BaseController
             'status'                      => 'new_request',
         ]);
 
+        // ── Auto-generate invoice (same as course / mock-test flow) ───────────
+        // Creates the invoice immediately so student can pay right away from
+        // the dashboard without waiting for admin to change status.
+        // InvoiceService also advances enrollment status → payment_pending.
+        $invoice = null;
+        if ($plan->price !== null && (float) $plan->price > 0) {
+            try {
+                $enrollment->setRelation('examBooking', $plan); // avoid extra query
+                $invoice = $this->invoiceService->createForExamBookingEnrollment(
+                    $enrollment,
+                    $request->user(),
+                    ['payment_method' => 'bank_qr']
+                );
+            } catch (\Throwable) {
+                // Non-fatal — enrollment is saved; invoice can be generated later via dashboard
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Exam booking submitted successfully.',
-            'data'    => $enrollment->load([
-                'examBooking:id,exam_name,exam_type,price,discount',
-            ]),
+            'data'    => [
+                'enrollment' => $enrollment->load(['examBooking:id,exam_name,exam_type,price,discount']),
+                'invoice'    => $invoice,
+            ],
         ], 201);
     }
 
@@ -89,40 +113,63 @@ class ExamBookingController extends BaseController
         $enrollment = ExamBookingEnrollment::where('user_id', $request->user()->id)
             ->findOrFail($id);
 
-        $editableStatuses = ['new_request', 'document_pending'];
+        $editableStatuses = ['new_request', 'document_pending', 'payment_pending'];
         if (!in_array($enrollment->status, $editableStatuses)) {
             return response()->json([
                 'success' => false,
                 'message' => 'This booking can no longer be edited because the admin has already started processing it.',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            ], 422);
         }
 
-        $validated = $request->validate([
-            'preferred_date'        => 'required|date|after_or_equal:today',
-            'preferred_time'        => 'nullable|date_format:H:i',
-            'preferred_test_centre' => 'required|string|max:255',
-            'passport_name'         => 'required|string|max:255',
-            'passport_number'       => 'required|string|max:50',
-            'date_of_birth'         => 'required|date|before:today',
-            'phone'                 => 'required|string|max:20',
-            'email'                 => 'required|email|max:255',
-            'special_message'       => 'nullable|string|max:1000',
-            'passport_copy'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-        ]);
+        // payment_pending: personal details only (no date/centre/plan changes)
+        $personalDetailsOnly = $enrollment->status === 'payment_pending';
 
-        $enrollment->update([
-            'preferred_date'        => $validated['preferred_date'],
-            'preferred_time'        => $validated['preferred_time'] ?? null,
-            'preferred_test_centre' => $validated['preferred_test_centre'],
-            'test_location'         => $validated['preferred_test_centre'],
-            'passport_name'         => $validated['passport_name'],
-            'passport_number'       => $validated['passport_number'],
-            'date_of_birth'         => $validated['date_of_birth'],
-            'contact_number'        => $validated['phone'],
-            'phone'                 => $validated['phone'],
-            'email'                 => $validated['email'],
-            'special_message'       => $validated['special_message'] ?? null,
-        ]);
+        if ($personalDetailsOnly) {
+            $validated = $request->validate([
+                'passport_name'   => 'required|string|max:255',
+                'passport_number' => 'required|string|max:50',
+                'date_of_birth'   => 'required|date|before:today',
+                'phone'           => 'required|string|max:20',
+                'email'           => 'required|email|max:255',
+                'passport_copy'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            ]);
+
+            $enrollment->update([
+                'passport_name'   => $validated['passport_name'],
+                'passport_number' => $validated['passport_number'],
+                'date_of_birth'   => $validated['date_of_birth'],
+                'contact_number'  => $validated['phone'],
+                'phone'           => $validated['phone'],
+                'email'           => $validated['email'],
+            ]);
+        } else {
+            $validated = $request->validate([
+                'preferred_date'        => 'required|date|after_or_equal:today',
+                'preferred_time'        => 'nullable|date_format:H:i',
+                'preferred_test_centre' => 'required|string|max:255',
+                'passport_name'         => 'required|string|max:255',
+                'passport_number'       => 'required|string|max:50',
+                'date_of_birth'         => 'required|date|before:today',
+                'phone'                 => 'required|string|max:20',
+                'email'                 => 'required|email|max:255',
+                'special_message'       => 'nullable|string|max:1000',
+                'passport_copy'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            ]);
+
+            $enrollment->update([
+                'preferred_date'        => $validated['preferred_date'],
+                'preferred_time'        => $validated['preferred_time'] ?? null,
+                'preferred_test_centre' => $validated['preferred_test_centre'],
+                'test_location'         => $validated['preferred_test_centre'],
+                'passport_name'         => $validated['passport_name'],
+                'passport_number'       => $validated['passport_number'],
+                'date_of_birth'         => $validated['date_of_birth'],
+                'contact_number'        => $validated['phone'],
+                'phone'                 => $validated['phone'],
+                'email'                 => $validated['email'],
+                'special_message'       => $validated['special_message'] ?? null,
+            ]);
+        }
 
         if ($request->hasFile('passport_copy')) {
             $file = $request->file('passport_copy');

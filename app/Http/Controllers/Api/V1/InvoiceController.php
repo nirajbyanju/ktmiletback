@@ -27,8 +27,10 @@ class InvoiceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Invoice::with([
+            'batch:id,course_id,batch_type,class_time,class_link,start_date,end_date,schedule_notes,teacher_id,is_active',
             'batch.course:id,course_name',
-            'mockTestSubscription:id,subscriptions_name,subscriptions_type,subscriptions_category,price',
+            'batch.teacher:id,name',
+            'mockTestSubscription:id,subscriptions_name,subscriptions_type,subscriptions_category,price,duration,duration_type',
             'examBookingEnrollment.examBooking:id,exam_name,exam_type,price',
             'user:id,name,first_name,last_name,email,phone',
         ])->latest('id');
@@ -440,6 +442,59 @@ class InvoiceController extends Controller
         ]);
     }
 
+    // -- Switch mock test plan (student, action_required only) ------------
+
+    public function switchMockPlan(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'old_invoice_id' => ['required', 'integer', 'exists:invoices,id'],
+            'new_plan_id'    => ['required', 'integer', 'exists:mock_test_subscriptions,id'],
+        ]);
+
+        $oldInvoice = Invoice::findOrFail($data['old_invoice_id']);
+
+        if ($oldInvoice->user_id !== $request->user()->id) {
+            abort(Response::HTTP_FORBIDDEN, 'You cannot modify this invoice.');
+        }
+
+        if ($oldInvoice->status !== Invoice::STATUS_UNPAID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only unpaid invoices can be switched.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($oldInvoice->crm_payment_status !== null && $oldInvoice->crm_payment_status !== 'action_required') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plan can only be changed when payment status is Action Required.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ((int) $oldInvoice->mock_test_subscription_id === (int) $data['new_plan_id']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This is already your selected plan.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $newPlan = MockTestSubscription::findOrFail($data['new_plan_id']);
+
+        // Cancel old invoice
+        $oldInvoice->update(['status' => Invoice::STATUS_CANCELLED]);
+
+        // Create new invoice for new plan
+        $newInvoice = $this->invoiceService->createForMockTest($newPlan, $request->user(), ['payment_method' => 'bank_qr']);
+
+        $this->notifications->notifyInvoiceCreated($newInvoice, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mock test plan switched. New invoice generated.',
+            'data'    => $newInvoice,
+        ]);
+    }
+
     // -- Cancel invoice (student only, unpaid only) ------------------------
 
     public function cancel(Request $request, Invoice $invoice): JsonResponse
@@ -559,8 +614,4 @@ class InvoiceController extends Controller
     private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void
     {
         if ($this->canManageInvoices($request)) return;
-        if ($invoice->user_id !== $request->user()->id) {
-            abort(Response::HTTP_FORBIDDEN, 'You do not have access to this invoice.');
-        }
-    }
-}
+    

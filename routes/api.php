@@ -180,6 +180,7 @@ Route::prefix('v1')->group(function () {
 
         // ==================== ENROLLMENTS (course) ====================
         Route::apiResource('enrollments', EnrollmentController::class);
+        Route::patch('enrollments/{id}/change-batch', [EnrollmentController::class, 'changeBatch'])->name('enrollments.change-batch');
         Route::get('admin/enrollments/stats', [EnrollmentController::class, 'adminStats'])->name('admin.enrollments.stats');
         Route::get('admin/enrollments', [EnrollmentController::class, 'adminIndex'])->name('admin.enrollments.index');
         Route::patch('admin/enrollments/{enrollment}', [EnrollmentController::class, 'adminUpdate'])->name('admin.enrollments.update');
@@ -188,6 +189,7 @@ Route::prefix('v1')->group(function () {
         Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
         Route::post('invoices/mock-test', [InvoiceController::class, 'storeForMockTest'])->name('invoices.mock-test.store');
+        Route::post('invoices/switch-mock-plan', [InvoiceController::class, 'switchMockPlan'])->name('invoices.switch-mock-plan');
         Route::post('invoices/exam-booking', [InvoiceController::class, 'storeForExam'])->name('invoices.exam.store');
         Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
         Route::patch('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');

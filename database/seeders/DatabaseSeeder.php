@@ -12,35 +12,37 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // Core setup
+            // ── Core setup ────────────────────────────────────────────────────
             MenuSeeder::class,
             RolePermissionSeeder::class,
             PaymentStatusSeeder::class,
-            UserSeeder::class,
 
-            // // Users
-            // UserSeeder::class,
-             TeacherSeeder::class,
-            // StudentSeeder::class,
+            // ── Users ─────────────────────────────────────────────────────────
+            UserSeeder::class,       // Super Admin (nirajbyanju1234@gmail.com)
+            TeacherSeeder::class,    // 5 demo teachers
+            StudentSeeder::class,    // 15 demo students
 
-            // // Course catalog, enrollments & invoices
-         CourseCatalogSeeder::class,
-            // EnrollmentInvoiceSeeder::class,
+            // ── Course catalog ────────────────────────────────────────────────
+            CourseCatalogSeeder::class,           // IELTS + PTE courses & batch types
+            EnrollmentInvoiceSeeder::class,       // Course enrollments & invoices for demo students
 
-            // // Mock test plans, enrollments & invoices
-            // MockTestSubscriptionSeeder::class,
-            // MockTestEnrollmentSeeder::class,
+            // ── Mock tests ────────────────────────────────────────────────────
+            MockTestSubscriptionSeeder::class,    // 5 mock test plans
+            MockTestEnrollmentSeeder::class,      // Enrollments & invoices for demo students
 
-            // // Exam booking plans, enrollments & invoices
-            // ExamBookingSeeder::class,
+            // ── Exam bookings ─────────────────────────────────────────────────
+            ExamBookingSeeder::class,             // 6 exam plans + enrollments for demo students
 
-            // // Offers & Claims
-            // OfferSeeder::class,
-            // OfferClaimSeeder::class,
+            // ── Offers & Claims ───────────────────────────────────────────────
+            OfferSeeder::class,
+            OfferClaimSeeder::class,
 
-            // // Misc
-            // ContactMessageSeeder::class,
-            // TestimonialSeeder::class,
+            // ── Misc ──────────────────────────────────────────────────────────
+            ContactMessageSeeder::class,
+            TestimonialSeeder::class,
+
+            // ── Demo test student (last — depends on all plans above) ─────────
+            TestStudentSeeder::class, // test@ktm.edu.np / password11
         ]);
     }
 }

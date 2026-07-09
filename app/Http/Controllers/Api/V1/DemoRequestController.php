@@ -62,7 +62,8 @@ class DemoRequestController extends BaseController
      */
     public function userIndex(Request $request): JsonResponse
     {
-        $requests = DemoRequest::where('user_id', $request->user()->id)
+        $requests = DemoRequest::with('teacher:id,name')
+            ->where('user_id', $request->user()->id)
             ->orderByDesc('created_at')
             ->get();
 
@@ -81,7 +82,7 @@ class DemoRequestController extends BaseController
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
-        $query = DemoRequest::with('user')->orderBy('created_at', 'desc');
+        $query = DemoRequest::with(['user', 'teacher:id,name'])->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -119,7 +120,7 @@ class DemoRequestController extends BaseController
 
         return response()->json([
             'success' => true,
-            'data'    => $demoRequest->load('user'),
+            'data'    => $demoRequest->load(['user', 'teacher:id,name']),
         ]);
     }
 
@@ -138,6 +139,7 @@ class DemoRequestController extends BaseController
             'zoom_url'     => 'nullable|url|max:500',
             'scheduled_at' => 'nullable|date',
             'admin_notes'  => 'nullable|string|max:3000',
+            'teacher_id'   => 'nullable|integer|exists:teachers,id',
         ]);
 
         if ($validated['status'] === 'approved') {
@@ -166,7 +168,7 @@ class DemoRequestController extends BaseController
         return response()->json([
             'success' => true,
             'message' => $message,
-            'data'    => $demoRequest->fresh()->load('user'),
+            'data'    => $demoRequest->fresh()->load(['user', 'teacher:id,name']),
         ]);
     }
 

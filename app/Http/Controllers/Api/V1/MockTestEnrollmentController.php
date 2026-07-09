@@ -19,7 +19,7 @@ class MockTestEnrollmentController extends Controller
     {
         $enrollments = MockTestEnrollment::with([
             'subscription:id,subscriptions_name,subscriptions_type,subscriptions_category,price,duration,duration_type',
-            'invoice:id,invoice_number,status,total_npr',
+            'invoice:id,invoice_number,status,total_npr,crm_payment_status',
         ])
             ->where('user_id', $request->user()->id)
             ->latest('id')

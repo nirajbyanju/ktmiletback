@@ -20,6 +20,7 @@ class DemoRequest extends Model
         'zoom_url',
         'scheduled_at',
         'admin_notes',
+        'teacher_id',
         'read_at',
     ];
 
@@ -33,5 +34,10 @@ class DemoRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class);
     }
 }
