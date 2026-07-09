@@ -87,6 +87,7 @@ class BatchController extends Controller
             'schedule_notes'   => ['nullable', 'string'],
             'start_date'       => ['nullable', 'date'],
             'end_date'         => ['nullable', 'date', 'after_or_equal:start_date'],
+            'class_status'     => ['nullable', 'string', 'in:upcoming,in_progress,completed,dropped,inactive'],
             'class_time'       => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
             'class_link'       => ['nullable', 'url'],
             'is_active'        => ['sometimes', 'boolean'],

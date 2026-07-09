@@ -195,7 +195,7 @@ class ExamBookingController extends BaseController
     {
         $enrollments = ExamBookingEnrollment::with([
             'examBooking:id,exam_name,exam_type,price,discount',
-            'invoice:id,invoice_number,status,total_npr',
+            'invoice:id,invoice_number,status,total_npr,crm_payment_status',
         ])
             ->where('user_id', $request->user()->id)
             ->latest()

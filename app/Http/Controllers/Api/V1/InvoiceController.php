@@ -614,4 +614,8 @@ class InvoiceController extends Controller
     private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void
     {
         if ($this->canManageInvoices($request)) return;
-    
+        if ($invoice->user_id !== $request->user()->id) {
+            abort(Response::HTTP_FORBIDDEN, 'You do not have access to this invoice.');
+        }
+    }
+}
