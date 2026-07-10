@@ -11,6 +11,36 @@ use Illuminate\Support\Facades\Storage;
 
 class TeacherController extends Controller
 {
+    // ── Public ────────────────────────────────────────────────────────────────
+
+    /**
+     * Public teacher listing for the website "Meet Our Teachers" page.
+     * Only Active teachers, and only public-safe fields (no phone/email/notes).
+     */
+    public function publicIndex(): JsonResponse
+    {
+        $teachers = Teacher::with('courses:id,course_name')
+            ->where('status', 'Active')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Teacher $t) => [
+                'id'                => $t->id,
+                'name'              => $t->display_name,
+                'specialization'    => $t->specialization,
+                'qualification'     => $t->qualification,
+                'experience_years'  => $t->experience_years,
+                'bio'               => $t->bio,
+                'profile_photo_url' => $t->profile_photo_url,
+                'courses'           => $t->courses->pluck('course_name')->values(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Teachers retrieved successfully.',
+            'data'    => $teachers,
+        ]);
+    }
+
     // ── Admin: full CRUD ──────────────────────────────────────────────────────
 
     private function authorizeAdmin(Request $request): void

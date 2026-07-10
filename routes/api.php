@@ -69,8 +69,12 @@ Route::prefix('v1')->group(function () {
         // Contact form — public, no auth
         Route::post('/contact', [ContactMessageController::class, 'store'])->middleware('throttle:10,1')->name('contact.store');
 
-        // Testimonials — public listing
+        // Testimonials — public listing + photo serving (no /storage symlink needed)
         Route::get('/testimonials', [TestimonialController::class, 'publicIndex'])->name('testimonials.public');
+        Route::get('/testimonials/{id}/photo', [TestimonialController::class, 'servePhoto'])->whereNumber('id')->name('testimonials.photo');
+
+        // Teachers — public listing for the "Meet Our Teachers" page
+        Route::get('/teachers', [TeacherController::class, 'publicIndex'])->name('teachers.public');
 
         // Offers — public listing (active & not expired)
         Route::get('/offers', [OfferController::class, 'publicIndex'])->name('offers.public');

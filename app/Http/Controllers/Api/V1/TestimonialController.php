@@ -113,6 +113,37 @@ class TestimonialController extends Controller
 
     // ── Photo management ──────────────────────────────────────────────────────
 
+    /**
+     * Serve the testimonial photo through the API (no /storage symlink needed).
+     */
+    public function servePhoto(int $id): mixed
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        $path        = $testimonial->photo;
+
+        if (!$path || str_starts_with($path, 'http')) {
+            abort(404);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            $disk = 'public';
+        } elseif (Storage::disk('local')->exists($path)) {
+            $disk = 'local';
+        } else {
+            abort(404);
+        }
+
+        $mime     = Storage::disk($disk)->mimeType($path) ?: 'image/jpeg';
+        $contents = Storage::disk($disk)->get($path);
+
+        return response()->stream(function () use ($contents) {
+            echo $contents;
+        }, 200, [
+            'Content-Type'  => $mime,
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
     public function uploadPhoto(Request $request, int $id): JsonResponse
     {
         $request->validate([
@@ -131,7 +162,7 @@ class TestimonialController extends Controller
             'message' => 'Photo uploaded successfully.',
             'data'    => [
                 'photo'     => $path,
-                'photo_url' => Storage::disk('public')->url($path),
+                'photo_url' => $testimonial->fresh()->photo_url,
             ],
         ]);
     }

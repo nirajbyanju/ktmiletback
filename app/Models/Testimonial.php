@@ -44,6 +44,8 @@ class Testimonial extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->photo);
+        // Served through the API so it works even when the /storage
+        // symlink is missing on the host (same approach as profile pictures).
+        return url("/api/v1/public/testimonials/{$this->id}/photo");
     }
 }
