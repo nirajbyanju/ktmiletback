@@ -46,6 +46,10 @@ class Testimonial extends Model
 
         // Served through the API so it works even when the /storage
         // symlink is missing on the host (same approach as profile pictures).
-        return url("/api/v1/public/testimonials/{$this->id}/photo");
+        // The ?v= timestamp changes whenever the record updates, so browsers
+        // never show a stale cached copy after a photo is replaced.
+        $version = $this->updated_at?->timestamp ?? 0;
+
+        return url("/api/v1/public/testimonials/{$this->id}/photo") . "?v={$version}";
     }
 }
