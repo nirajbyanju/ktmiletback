@@ -32,21 +32,26 @@ class Course extends Model
     ];
 
     protected $casts = [
-        'duration'     => 'integer',
-        'support'      => 'array',
-        'instruction'  => 'array',
-        'schedule'     => 'array',
-        'features'     => 'array',
-        'is_status'    => 'integer',
+        'duration' => 'integer',
+        'support' => 'array',
+        'instruction' => 'array',
+        'schedule' => 'array',
+        'features' => 'array',
+        'is_status' => 'integer',
         'published_at' => 'datetime',
-        'created_by'   => 'integer',
-        'updated_by'   => 'integer',
-        'deleted_by'   => 'integer',
+        'created_by' => 'integer',
+        'updated_by' => 'integer',
+        'deleted_by' => 'integer',
     ];
 
     public function batches(): HasMany
     {
         return $this->hasMany(Batch::class);
+    }
+
+    public function packages(): HasMany
+    {
+        return $this->hasMany(Package::class)->orderBy('sort_order');
     }
 
     public function teachers(): BelongsToMany

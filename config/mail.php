@@ -115,4 +115,9 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS', 'ktmtestpreparation@ktmeducational.edu.np'),
+        'name' => env('MAIL_REPLY_TO_NAME', 'KTM Test Preparation Centre'),
+    ],
+
 ];

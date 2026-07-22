@@ -13,6 +13,7 @@ class Batch extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'package_id',
         'course_id',
         'batch_type',
         'best_for',
@@ -34,22 +35,26 @@ class Batch extends Model
     ];
 
     protected $casts = [
-        'course_id'         => 'integer',
-        'min_size'          => 'integer',
-        'max_size'          => 'integer',
-        'price_npr'         => 'decimal:2',
+        'course_id' => 'integer',
+        'min_size' => 'integer',
+        'max_size' => 'integer',
+        'price_npr' => 'decimal:2',
 
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
 
-        'start_date'        => 'date:Y-m-d',
-        'end_date'          => 'date:Y-m-d',
-
-        'is_active'         => 'boolean',
-        'is_featured'       => 'boolean',
-        'teacher_id'        => 'integer',
-        'created_by'        => 'integer',
-        'updated_by'        => 'integer',
-        'deleted_by'        => 'integer',
+        'is_active' => 'boolean',
+        'is_featured' => 'boolean',
+        'teacher_id' => 'integer',
+        'created_by' => 'integer',
+        'updated_by' => 'integer',
+        'deleted_by' => 'integer',
     ];
+
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(Package::class);
+    }
 
     public function course(): BelongsTo
     {

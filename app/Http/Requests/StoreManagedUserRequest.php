@@ -20,7 +20,7 @@ class StoreManagedUserRequest extends FormRequest
             'username' => 'required|string|max:255|unique:users,username',
             'email' => 'required|email|max:255|unique:users,email',
             'phone' => 'required|string|max:50|unique:users,phone',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => 'nullable|string|min:8|confirmed',
             'roles' => 'required|array|min:1',
             'roles.*' => 'required',
             'status' => 'nullable|boolean',

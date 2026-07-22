@@ -11,13 +11,17 @@ class Offer extends Model
 {
     use HasFactory, SoftDeletes;
 
-    const STATUS_ACTIVE   = 'active';
+    const STATUS_ACTIVE = 'active';
+
     const STATUS_INACTIVE = 'inactive';
 
-    const APPLICABLE_ALL       = 'all';
-    const APPLICABLE_COURSE    = 'course';
+    const APPLICABLE_ALL = 'all';
+
+    const APPLICABLE_COURSE = 'course';
+
     const APPLICABLE_MOCK_TEST = 'mock_test';
-    const APPLICABLE_BOOKING   = 'booking';
+
+    const APPLICABLE_BOOKING = 'booking';
 
     const APPLICABLE_TYPES = [
         self::APPLICABLE_ALL,
@@ -39,20 +43,22 @@ class Offer extends Model
         'sort_order',
         'applicable_type',
         'applicable_id',
+        'is_referral',
         'created_by',
         'updated_by',
         'deleted_by',
     ];
 
     protected $casts = [
-        'start_date'            => 'date',
-        'valid_date'            => 'date',
+        'start_date' => 'date',
+        'valid_date' => 'date',
         'claim_discount_amount' => 'decimal:2',
-        'sort_order'            => 'integer',
-        'applicable_id'         => 'integer',
-        'created_by'            => 'integer',
-        'updated_by'            => 'integer',
-        'deleted_by'            => 'integer',
+        'is_referral' => 'boolean',
+        'sort_order' => 'integer',
+        'applicable_id' => 'integer',
+        'created_by' => 'integer',
+        'updated_by' => 'integer',
+        'deleted_by' => 'integer',
     ];
 
     public function isApplicableTo(string $type, ?int $subjectId = null): bool
@@ -86,6 +92,6 @@ class Offer extends Model
 
     public function isClaimable(): bool
     {
-        return $this->isActive() && !$this->isExpired();
+        return $this->isActive() && ! $this->isExpired();
     }
 }

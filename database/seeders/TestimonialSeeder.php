@@ -4,109 +4,125 @@ namespace Database\Seeders;
 
 use App\Models\Testimonial;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 
 class TestimonialSeeder extends Seeder
 {
     public function run(): void
     {
+        // 1. Delete all existing testimonials (including soft-deleted ones)
+        Testimonial::withTrashed()->forceDelete();
+
+        // 2. Define the new real IELTS testimonials scraped from https://ktmeducational.edu.np/student-testimonials/
         $testimonials = [
             [
-                'initials'    => 'SP',
-                'name'        => 'Sita P.',
-                'meta'        => 'Studying in Australia',
-                'tag'         => 'IELTS Band 7.5',
-                'country'     => 'Australia',
-                'quote'       => 'The teachers explained every IELTS section so clearly. The mock tests felt exactly like the real exam — I walked in confident on test day and got my target band on the first attempt.',
-                'cats'        => ['ielts'],
+                'name' => 'Amardeep Upadhyaya',
+                'initials' => 'AU',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'It was a very good time for me to be here at KTM Educational Consultancy for a couple of months. Luckily I went to this institution where I found cooperative members and versatile instructors. The technology here made our learning environment worth it. Honestly speaking, this institution had been the best platform for my further day education as it gave me the best guidelines.',
+                'cats' => ['ielts'],
                 'is_featured' => true,
-                'sort_order'  => 1,
+                'sort_order' => 1,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/amardeep_dhital1.original.jpg',
             ],
             [
-                'initials'    => 'RK',
-                'name'        => 'Ramesh K.',
-                'meta'        => 'Currently in the UK',
-                'tag'         => 'PTE 79',
-                'country'     => 'UK',
-                'quote'       => 'I joined the Global Flex Batch from London. Same Nepali teachers, time zone that worked for me, and weekly speaking practice that actually helped. Highly recommend for Nepalese students abroad.',
-                'cats'        => ['pte', 'abroad'],
+                'name' => 'Anamika Gurung',
+                'initials' => 'AG',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'KTM Educational Consultancy is the consultancy where I have been studying IELTS. I found this consultancy cheaper and better also. It has also a good environment. I also recommend other people to take IELTS or other classes.',
+                'cats' => ['ielts'],
                 'is_featured' => true,
-                'sort_order'  => 2,
+                'sort_order' => 2,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/anamika_gurung1.original.jpg',
             ],
             [
-                'initials'    => 'AS',
-                'name'        => 'Anjali S.',
-                'meta'        => 'Joined from Kathmandu',
-                'tag'         => 'PTE 72',
-                'country'     => 'Nepal',
-                'quote'       => 'Affordable fees, honest teaching, and real computer-based practice. Their booking support saved me from a passport detail mistake too. I cleared PTE on my second try with their help.',
-                'cats'        => ['pte'],
-                'is_featured' => false,
-                'sort_order'  => 3,
-            ],
-            [
-                'initials'    => 'PB',
-                'name'        => 'Prakash B.',
-                'meta'        => 'Joined from Pokhara',
-                'tag'         => 'IELTS Band 7.0',
-                'country'     => 'Nepal',
-                'quote'       => 'I work full-time so the weekend batch was perfect. Teachers were patient with my questions on WhatsApp even after class hours. Worth every rupee.',
-                'cats'        => ['ielts'],
-                'is_featured' => false,
-                'sort_order'  => 4,
-            ],
-            [
-                'initials'    => 'MT',
-                'name'        => 'Manisha T.',
-                'meta'        => 'Heading to Canada',
-                'tag'         => 'PTE 76',
-                'country'     => 'Canada',
-                'quote'       => 'The teachers gave me PTE templates that worked. Score came in 2 days. The booking team also handled my Pearson registration which made my life so easy.',
-                'cats'        => ['pte'],
+                'name' => 'Anisha Bala',
+                'initials' => 'AB',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'I am glad with my decision to join the class in KTM Educational Consultancy it’s been a wonderful experience and very fruitful for my career in abroad. Weekly test of IELTS class helps me a lot to be prepared for the IELTS test. The teacher and environment here are very friendly, and we all students get a homely environment to learn.',
+                'cats' => ['ielts'],
                 'is_featured' => true,
-                'sort_order'  => 5,
+                'sort_order' => 3,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/Anisha_Bala1.original.jpg',
             ],
             [
-                'initials'    => 'DN',
-                'name'        => 'Deepak N.',
-                'meta'        => 'Currently in Qatar',
-                'tag'         => 'IELTS Band 6.5',
-                'country'     => 'Qatar',
-                'quote'       => 'Joined from Doha and the time slots worked perfectly. The recorded classes for the days I missed were a lifesaver. Honest institute with real teaching.',
-                'cats'        => ['ielts', 'abroad'],
-                'is_featured' => false,
-                'sort_order'  => 6,
+                'name' => 'Asmita K.C',
+                'initials' => 'AK',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'Choosing the best IELTS preparation center is crucial because, in my opinion, the band score is vital for studying abroad. One of the best is KTM Educational Consultancy, which provides flexible class timings and a friendly environment that encourages interaction between instructors and students.',
+                'cats' => ['ielts'],
+                'is_featured' => true,
+                'sort_order' => 4,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/asmita_kc1.original.jpg',
             ],
             [
-                'initials'    => 'SG',
-                'name'        => 'Sneha G.',
-                'meta'        => 'Joined from Sydney',
-                'tag'         => 'IELTS Band 7.0',
-                'country'     => 'Australia',
-                'quote'       => 'I needed a quick band 7 for my PR application. The Fast-Track Private plan was intense but exactly what I needed. Got my result in 3 weeks of prep.',
-                'cats'        => ['ielts', 'abroad'],
-                'is_featured' => false,
-                'sort_order'  => 7,
+                'name' => 'Asmita thapa magar',
+                'initials' => 'AT',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'After my Nursing Licensing Examination, I sought a reliable consultancy for IELTS preparation and was recommended to KTM Educational Consultancy by a friend. The peaceful study environment, friendly staff, and weekly mock tests with updated materials significantly boosted my scores. In my opinion, it\'s one of the best consultancies in Nepal for IELTS classes.',
+                'cats' => ['ielts'],
+                'is_featured' => true,
+                'sort_order' => 5,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/asmita_thapa_magar1.original.jpg',
             ],
             [
-                'initials'    => 'BK',
-                'name'        => 'Bibek K.',
-                'meta'        => 'Joined from Lalitpur',
-                'tag'         => 'PTE 74',
-                'country'     => 'Nepal',
-                'quote'       => 'PTE felt scary at first but the speaking templates and re-tell lecture drills changed everything. Cleared on first attempt with a solid score.',
-                'cats'        => ['pte'],
-                'is_featured' => false,
-                'sort_order'  => 8,
+                'name' => 'Karuna Aryal',
+                'initials' => 'KA',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'KTM Educational Consultancy, located a few meters ahead of Putalisadak Chowk, provided an excellent environment for my IELTS preparation. The peaceful atmosphere, cooperative teachers, and weekly mock tests with ample learning materials made my classes very fruitful. I am glad to be a part of KTM Educational Consultancy.',
+                'cats' => ['ielts'],
+                'is_featured' => true,
+                'sort_order' => 6,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/karuna1.original.jpg',
+            ],
+            [
+                'name' => 'Manish Bhujel',
+                'initials' => 'MB',
+                'meta' => 'IELTS Student',
+                'tag' => 'IELTS',
+                'country' => 'Nepal',
+                'quote' => 'Clearly, this is one of the best consultancy in Kathmandu. The reason for being such a better consultancy is good environment and is cheaper then other consultancy which is also giving better knowledge and information. I recommend people to go KTM Educational consultancy and take IELTS or other classes for better future.',
+                'cats' => ['ielts'],
+                'is_featured' => true,
+                'sort_order' => 7,
+                'photo_url' => 'https://ktmeducational.edu.np/media/ktm_edu/other_dir/images/manish_bhujel1.original.jpg',
             ],
         ];
 
         foreach ($testimonials as $data) {
-            Testimonial::updateOrCreate(
-                ['name' => $data['name'], 'tag' => $data['tag']],
-                $data
-            );
-        }
+            $photoUrl = $data['photo_url'];
+            unset($data['photo_url']);
 
-        $this->command->info('Seeded ' . count($testimonials) . ' testimonial(s).');
+            // Create record
+            $t = Testimonial::create($data);
+
+            // Fetch and save photo
+            try {
+                $filename = basename($photoUrl);
+                $storagePath = "testimonial_photos/{$t->id}/{$filename}";
+
+                // Fetch image content securely via file_get_contents
+                $imageContent = @file_get_contents($photoUrl);
+
+                if ($imageContent !== false) {
+                    Storage::disk('public')->put($storagePath, $imageContent);
+                    $t->update(['photo' => $storagePath]);
+                }
+            } catch (\Exception $e) {
+                // If fetching fails, we keep the testimonial but skip the photo
+            }
+        }
     }
 }

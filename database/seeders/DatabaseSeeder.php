@@ -20,27 +20,28 @@ class DatabaseSeeder extends Seeder
 
             // // Users
             // UserSeeder::class,
-             TeacherSeeder::class,
+            TeacherSeeder::class,
             // StudentSeeder::class,
 
             // // Course catalog, enrollments & invoices
-         CourseCatalogSeeder::class,
+            CourseCatalogSeeder::class,
             // EnrollmentInvoiceSeeder::class,
 
             // // Mock test plans, enrollments & invoices
-            // MockTestSubscriptionSeeder::class,
-            // MockTestEnrollmentSeeder::class,
+            MockTestSubscriptionSeeder::class,
+            MockTestEnrollmentSeeder::class,
 
             // // Exam booking plans, enrollments & invoices
-            // ExamBookingSeeder::class,
+            ExamBookingSeeder::class,
 
             // // Offers & Claims
-            // OfferSeeder::class,
-            // OfferClaimSeeder::class,
+            OfferSeeder::class,
+            OfferClaimSeeder::class,
 
             // // Misc
-            // ContactMessageSeeder::class,
-            // TestimonialSeeder::class,
+            ContactMessageSeeder::class,
+            TestimonialSeeder::class,
+            TestStudentSeeder::class,
         ]);
     }
 }

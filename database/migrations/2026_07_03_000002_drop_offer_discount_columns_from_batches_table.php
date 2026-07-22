@@ -15,7 +15,6 @@ return new class extends Migration
                 'discount_value',
                 'offer_starts_at',
                 'offer_ends_at',
-                'is_price_variable',
             ]);
         });
     }
@@ -28,7 +27,6 @@ return new class extends Migration
             $table->decimal('discount_value', 10, 2)->nullable()->after('discount_type');
             $table->date('offer_starts_at')->nullable()->after('discount_value');
             $table->date('offer_ends_at')->nullable()->after('offer_starts_at');
-            $table->boolean('is_price_variable')->default(false)->after('offer_ends_at');
         });
     }
 };

@@ -44,7 +44,6 @@ return new class extends Migration
             $table->integer('min_size')->nullable();
             $table->integer('max_size')->nullable();
             $table->decimal('price_npr', 10, 2)->nullable();
-            $table->boolean('is_price_variable')->default(false);
             $table->string('offer_label', 100)->nullable();
             $table->string('discount_type', 20)->nullable();
             $table->decimal('discount_value', 10, 2)->nullable();

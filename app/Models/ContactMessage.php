@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ContactMessage extends Model
 {
@@ -13,6 +13,7 @@ class ContactMessage extends Model
     protected $table = 'contact_messages';
 
     protected $fillable = [
+        'user_id',
         'full_name',
         'email',
         'whatsapp_number',

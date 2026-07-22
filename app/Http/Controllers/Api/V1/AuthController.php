@@ -2,27 +2,28 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use Illuminate\Http\Request;
-use App\Http\Controllers\Api\V1\BaseController;
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Http\JsonResponse;
 use App\Http\Requests\RegisterUserRequest;
-use Illuminate\Support\Facades\Hash;
+use App\Models\RefreshToken;
+use App\Models\User;
 use App\Services\RegistrationService;
+use App\Services\TemplateMailer;
 use App\Services\UserMenuService;
 use Carbon\Carbon;
-use App\Models\RefreshToken;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends BaseController
 {
     protected RegistrationService $registrationService;
-    protected UserMenuService $userMenuService;
 
+    protected UserMenuService $userMenuService;
 
     public function __construct(
         RegistrationService $registrationService,
@@ -31,7 +32,6 @@ class AuthController extends BaseController
         $this->registrationService = $registrationService;
         $this->userMenuService = $userMenuService;
     }
-
 
     public function register(RegisterUserRequest $request): JsonResponse
     {
@@ -53,6 +53,7 @@ class AuthController extends BaseController
     {
         // Use the service to register the user
         $userData = $this->registrationService->registerAdmin($request->all());
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -64,11 +65,10 @@ class AuthController extends BaseController
         ], 201);
     }
 
-
     /**
      * Login api
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function login(Request $request): JsonResponse
     {
@@ -78,29 +78,30 @@ class AuthController extends BaseController
             'device_name' => 'nullable|string|max:100',
         ]);
 
-        if (!User::where('email', $request->email)->first()) {
+        if (! User::where('email', $request->email)->first()) {
             return response()->json([
                 'error' => [
                     'status' => 'error',
                     'validationErrors' => [
-                        'email' => ['The email not found.']
+                        'email' => ['The email not found.'],
                     ],
                 ],
             ], 422);
         }
 
         // First check authentication without loading relationships
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        if (! Auth::attempt($request->only('email', 'password'))) {
             Log::warning('Failed login attempt', [
                 'email' => $request->email,
-                'ip'    => $request->ip(),
-                'ua'    => $request->userAgent(),
+                'ip' => $request->ip(),
+                'ua' => $request->userAgent(),
             ]);
+
             return response()->json([
                 'error' => [
                     'status' => 'error',
                     'validationErrors' => [
-                        'password' => ['The password is incorrect.']
+                        'password' => ['The password is incorrect.'],
                     ],
                 ],
             ], 422);
@@ -116,7 +117,7 @@ class AuthController extends BaseController
                 'error' => [
                     'status' => 'error',
                     'validationErrors' => [
-                        'email' => ['The account is inactive or disabled.']
+                        'email' => ['The account is inactive or disabled.'],
                     ],
                 ],
             ], 403);
@@ -163,7 +164,7 @@ class AuthController extends BaseController
 
         $tokenModel = RefreshToken::where('token', $validated['refresh_token'])->first();
 
-        if (!$tokenModel) {
+        if (! $tokenModel) {
             return $this->tokenErrorResponse(
                 'refresh_token_invalid',
                 'Invalid or expired refresh token.',
@@ -183,7 +184,7 @@ class AuthController extends BaseController
 
         $user = $tokenModel->user;
 
-        if (!$user) {
+        if (! $user) {
             return $this->tokenErrorResponse(
                 'user_not_found',
                 'User not found.',
@@ -231,7 +232,7 @@ class AuthController extends BaseController
             return response()->json([
                 'success' => true,
                 'data' => $this->buildTokenPayload($user, $accessToken, $newRefreshToken, $accessTokenExpiresAt),
-                'message' => 'Token refreshed successfully.'
+                'message' => 'Token refreshed successfully.',
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -243,6 +244,7 @@ class AuthController extends BaseController
             );
         }
     }
+
     public function sendResetLinkEmail(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -251,7 +253,7 @@ class AuthController extends BaseController
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->passwordErrorResponse(
                 'email_not_found',
                 'No account found for that email address.',
@@ -301,7 +303,7 @@ class AuthController extends BaseController
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->passwordErrorResponse(
                 'email_not_found',
                 'No account found for that email address.',
@@ -309,7 +311,7 @@ class AuthController extends BaseController
             );
         }
 
-        if (!Password::broker()->tokenExists($user, $validated['token'])) {
+        if (! Password::broker()->tokenExists($user, $validated['token'])) {
             return $this->passwordErrorResponse(
                 'reset_token_invalid',
                 'Reset token is invalid or has expired.',
@@ -329,7 +331,7 @@ class AuthController extends BaseController
 
     public function resetPassword(Request $request): JsonResponse
     {
-        if ($request->filled('cPassword') && !$request->filled('password_confirmation')) {
+        if ($request->filled('cPassword') && ! $request->filled('password_confirmation')) {
             $request->merge([
                 'password_confirmation' => $request->input('cPassword'),
             ]);
@@ -344,7 +346,7 @@ class AuthController extends BaseController
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->passwordErrorResponse(
                 'email_not_found',
                 'No account found for that email address.',
@@ -352,7 +354,7 @@ class AuthController extends BaseController
             );
         }
 
-        if (!Password::broker()->tokenExists($user, $validated['token'])) {
+        if (! Password::broker()->tokenExists($user, $validated['token'])) {
             return $this->passwordErrorResponse(
                 'reset_token_invalid',
                 'Reset token is invalid or has expired.',
@@ -374,6 +376,10 @@ class AuthController extends BaseController
 
                 $user->tokens()->delete();
                 RefreshToken::where('user_id', $user->id)->delete();
+
+                app(TemplateMailer::class)->sendToUser('password_changed', $user, [
+                    'PasswordChangeDate' => now()->format('j M Y, g:i A').' (NPT)',
+                ]);
             }
         );
 
@@ -417,7 +423,7 @@ class AuthController extends BaseController
                 ->where('email', $request->email)
                 ->first();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid token or email.',
@@ -440,7 +446,6 @@ class AuthController extends BaseController
         }
     }
 
-
     public function resendVerification(Request $request): JsonResponse
     {
         try {
@@ -454,14 +459,14 @@ class AuthController extends BaseController
                     'success' => false,
                     'status' => 422,
                     'message' => 'Invalid input',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
             // Fetch user by email
             $user = User::where('email', $request->email)->first();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
                     'status' => 404,
@@ -485,7 +490,7 @@ class AuthController extends BaseController
             return response()->json([
                 'success' => true,
                 'status' => 200,
-                'message' => 'Verification email resent successfully.'
+                'message' => 'Verification email resent successfully.',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -502,7 +507,7 @@ class AuthController extends BaseController
             $user = $request->user();
 
             // Check if user is authenticated
-            if (!$user) {
+            if (! $user) {
                 return $this->sendError('Unauthenticated user', 401);
             }
 
@@ -511,9 +516,13 @@ class AuthController extends BaseController
                 ? $user->currentAccessToken()
                 : null;
 
-            if ($logoutAllDevices || !$currentAccessToken) {
+            if ($logoutAllDevices || ! $currentAccessToken) {
                 $user->tokens()->delete();
                 RefreshToken::where('user_id', $user->id)->delete();
+
+                app(TemplateMailer::class)->sendToUser('password_changed', $user, [
+                    'PasswordChangeDate' => now()->format('j M Y, g:i A').' (NPT)',
+                ]);
             } else {
                 RefreshToken::where('personal_access_token_id', $currentAccessToken->id)->delete();
                 $currentAccessToken->delete();
@@ -563,13 +572,13 @@ class AuthController extends BaseController
             'token_type' => 'Bearer',
             'device_name' => $refreshToken->device_name,
             'user' => [
-                'id'           => $user->id,
-                'firstName'    => $user->first_name,
-                'lastName'     => $user->last_name,
-                'userName'     => $user->username,
-                'email'        => $user->email,
+                'id' => $user->id,
+                'firstName' => $user->first_name,
+                'lastName' => $user->last_name,
+                'userName' => $user->username,
+                'email' => $user->email,
                 'has_password' => (bool) $user->has_password,
-                'roles'        => $user->roles->pluck('name'),
+                'roles' => $user->roles->pluck('name'),
             ],
             'menus' => $this->userMenuService->getForUser($user),
         ];

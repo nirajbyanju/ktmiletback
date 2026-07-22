@@ -1,36 +1,46 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\AdditionalServiceController;
+use App\Http\Controllers\Api\V1\ArchiveController;
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\MenuController;
-use App\Http\Controllers\Api\V1\PermissionMatrixController;
-use App\Http\Controllers\Api\V1\EmployeePermissionController;
-use App\Http\Controllers\Api\V1\PermissionController;
-use App\Http\Controllers\Api\V1\NotificationController;
-use App\Http\Controllers\Api\V1\UserProfileController;
-use App\Http\Controllers\Api\V1\RoleController;
-use App\Http\Controllers\Api\V1\UserAccessController;
-use App\Http\Controllers\MenusController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\BatchTypeController;
+use App\Http\Controllers\Api\V1\BillingSettingsController;
+use App\Http\Controllers\Api\V1\CertificateController;
+use App\Http\Controllers\Api\V1\ContactMessageController;
 use App\Http\Controllers\Api\V1\CourseCatalogController;
 use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\CourseModuleController;
-use App\Http\Controllers\Api\V1\EnrollmentController;
-use App\Http\Controllers\Api\V1\AdditionalServiceController;
-use App\Http\Controllers\Api\V1\SupportChannelController;
-use App\Http\Controllers\Api\V1\SkillModuleController;
-use App\Http\Controllers\Api\V1\InvoiceController;
-use App\Http\Controllers\Api\V1\ExamBookingController;
-use App\Http\Controllers\Api\V1\ContactMessageController;
-use App\Http\Controllers\Api\V1\GoogleAuthController;
-use App\Http\Controllers\Api\V1\TeacherController;
-use App\Http\Controllers\Api\V1\MockTestSubscriptionController;
-use App\Http\Controllers\Api\V1\MockTestEnrollmentController;
-use App\Http\Controllers\Api\V1\TestimonialController;
-use App\Http\Controllers\Api\V1\OfferController;
-use App\Http\Controllers\Api\V1\OfferClaimController;
 use App\Http\Controllers\Api\V1\DemoRequestController;
+use App\Http\Controllers\Api\V1\EmployeePermissionController;
+use App\Http\Controllers\Api\V1\EnrollmentController;
+use App\Http\Controllers\Api\V1\ExamBookingController;
+use App\Http\Controllers\Api\V1\FaqController;
+use App\Http\Controllers\Api\V1\GoogleAuthController;
+use App\Http\Controllers\Api\V1\InvoiceController;
+use App\Http\Controllers\Api\V1\MenuController;
+use App\Http\Controllers\Api\V1\MessageTemplateController;
+use App\Http\Controllers\Api\V1\MockTestEnrollmentController;
+use App\Http\Controllers\Api\V1\MockTestSubscriptionController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\OfferClaimController;
+use App\Http\Controllers\Api\V1\OfferController;
+use App\Http\Controllers\Api\V1\PackageController;
+use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\PermissionMatrixController;
+use App\Http\Controllers\Api\V1\ReferralController;
+use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\SiteContentController;
+use App\Http\Controllers\Api\V1\SkillModuleController;
+use App\Http\Controllers\Api\V1\StudentDirectoryController;
+use App\Http\Controllers\Api\V1\SupportChannelController;
+use App\Http\Controllers\Api\V1\TeacherController;
+use App\Http\Controllers\Api\V1\TestimonialController;
+use App\Http\Controllers\Api\V1\UserAccessController;
+use App\Http\Controllers\Api\V1\UserProfileController;
+use App\Http\Controllers\MenusController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +78,12 @@ Route::prefix('v1')->group(function () {
 
         // Contact form — public, no auth
         Route::post('/contact', [ContactMessageController::class, 'store'])->middleware('throttle:10,1')->name('contact.store');
+
+        // Billing/VAT settings — public read (checkout estimates)
+        Route::get('/billing-settings', [BillingSettingsController::class, 'publicShow'])->name('public.billing-settings');
+        Route::get('/site-content', [SiteContentController::class, 'publicShow'])->name('public.site-content');
+        Route::get('/faqs', [SiteContentController::class, 'publicFaqs'])->name('public.faqs');
+        Route::get('/referral-program', [ReferralController::class, 'publicProgram'])->name('public.referral-program');
 
         // Testimonials — public listing + photo serving (no /storage symlink needed)
         Route::get('/testimonials', [TestimonialController::class, 'publicIndex'])->name('testimonials.public');
@@ -145,45 +161,96 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================== COURSES & BATCHES ====================
-        Route::apiResource('courses', CourseController::class);
-        Route::apiResource('batches', BatchController::class);
-
-        // ==================== BATCH TYPES ====================
-        Route::get('batch-types',                    [BatchTypeController::class, 'index'])->name('batch-types.index');
-        Route::post('batch-types',                   [BatchTypeController::class, 'store'])->name('batch-types.store');
-        Route::patch('batch-types/{batchType}',      [BatchTypeController::class, 'update'])->name('batch-types.update');
-        Route::delete('batch-types/{batchType}',     [BatchTypeController::class, 'destroy'])->name('batch-types.destroy');
-
-        // Course modules (nested under courses)
+        // Reads stay open to any authenticated user (students read the catalog,
+        // e.g. the dashboard's Change Batch list). Create/edit/delete are locked
+        // to admins in the role-guarded group below.
+        Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
+        Route::apiResource('packages', PackageController::class)->only(['index']);
+        Route::apiResource('batches', BatchController::class)->only(['index', 'show']);
+        Route::get('batch-types', [BatchTypeController::class, 'index'])->name('batch-types.index');
         Route::get('courses/{courseId}/modules', [CourseModuleController::class, 'index'])->name('courses.modules.index');
-        Route::post('courses/{courseId}/modules', [CourseModuleController::class, 'store'])->name('courses.modules.store');
-        Route::put('courses/{courseId}/modules/{id}', [CourseModuleController::class, 'update'])->name('courses.modules.update');
-        Route::delete('courses/{courseId}/modules/{id}', [CourseModuleController::class, 'destroy'])->name('courses.modules.destroy');
+        Route::apiResource('support-channels', SupportChannelController::class)->only(['index', 'show']);
+        Route::apiResource('skills-modules', SkillModuleController::class)->only(['index', 'show']);
+        Route::apiResource('additional-services', AdditionalServiceController::class)->only(['index', 'show']);
 
-        // Legacy support — keep old endpoints alive for backwards compat
-        Route::apiResource('support-channels', SupportChannelController::class);
-        Route::apiResource('skills-modules', SkillModuleController::class);
-        Route::apiResource('additional-services', AdditionalServiceController::class);
+        // ---- Admin-only catalog writes (create / edit / delete) ----
+        Route::middleware('role:Admin|Super Admin')->group(function () {
+            Route::apiResource('courses', CourseController::class)->only(['store', 'update', 'destroy']);
+            Route::apiResource('packages', PackageController::class)->only(['store', 'update', 'destroy']);
+            Route::apiResource('batches', BatchController::class)->only(['store', 'update', 'destroy']);
+
+            Route::post('batch-types', [BatchTypeController::class, 'store'])->name('batch-types.store');
+            Route::patch('batch-types/{batchType}', [BatchTypeController::class, 'update'])->name('batch-types.update');
+            Route::delete('batch-types/{batchType}', [BatchTypeController::class, 'destroy'])->name('batch-types.destroy');
+
+            // Course modules (nested under courses)
+            Route::post('courses/{courseId}/modules', [CourseModuleController::class, 'store'])->name('courses.modules.store');
+            Route::put('courses/{courseId}/modules/{id}', [CourseModuleController::class, 'update'])->name('courses.modules.update');
+            Route::delete('courses/{courseId}/modules/{id}', [CourseModuleController::class, 'destroy'])->name('courses.modules.destroy');
+
+            // Legacy support — keep old endpoints alive for backwards compat
+            Route::apiResource('support-channels', SupportChannelController::class)->only(['store', 'update', 'destroy']);
+            Route::apiResource('skills-modules', SkillModuleController::class)->only(['store', 'update', 'destroy']);
+            Route::apiResource('additional-services', AdditionalServiceController::class)->only(['store', 'update', 'destroy']);
+        });
 
         // ==================== TEACHERS ====================
         Route::apiResource('teachers', TeacherController::class);
 
         // Teacher self-service (requires Teacher role)
         Route::prefix('teacher')->as('teacher.')->middleware('role:Teacher|Admin|Super Admin')->group(function () {
-            Route::get('/profile',          [TeacherController::class, 'myProfile'])->name('profile');
-            Route::patch('/profile',        [TeacherController::class, 'updateMyProfile'])->name('profile.update');
-            Route::post('/profile/photo',   [TeacherController::class, 'uploadPhoto'])->name('profile.photo.upload');
+            Route::get('/profile', [TeacherController::class, 'myProfile'])->name('profile');
+            Route::patch('/profile', [TeacherController::class, 'updateMyProfile'])->name('profile.update');
+            Route::post('/profile/photo', [TeacherController::class, 'uploadPhoto'])->name('profile.photo.upload');
             Route::delete('/profile/photo', [TeacherController::class, 'deletePhoto'])->name('profile.photo.delete');
 
             // Courses, students & invoices visible to the teacher
-            Route::get('/courses',                [TeacherController::class, 'myCourses'])->name('courses');
-            Route::patch('/batches/{batchId}',    [TeacherController::class, 'updateMyBatch'])->name('batches.update');
-            Route::get('/students',               [TeacherController::class, 'myStudents'])->name('students');
-            Route::get('/student-invoices',       [TeacherController::class, 'myStudentInvoices'])->name('student-invoices');
+            Route::get('/courses', [TeacherController::class, 'myCourses'])->name('courses');
+            Route::patch('/batches/{batchId}', [TeacherController::class, 'updateMyBatch'])->name('batches.update');
+            Route::get('/students', [TeacherController::class, 'myStudents'])->name('students');
+            Route::get('/student-invoices', [TeacherController::class, 'myStudentInvoices'])->name('student-invoices');
+        });
+
+        // ==================== ATTENDANCE (admin + teacher) ====================
+        // Teachers are scoped to their own classes + today only (enforced in the
+        // controller); admins may mark any class on any date.
+        Route::middleware('role:Teacher|Admin|Super Admin')->group(function () {
+            Route::get('attendance/classes', [AttendanceController::class, 'classes'])->name('attendance.classes');
+            Route::get('attendance/roster', [AttendanceController::class, 'roster'])->name('attendance.roster');
+            Route::get('attendance/history', [AttendanceController::class, 'history'])->name('attendance.history');
+            Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
         });
 
         // ==================== ENROLLMENTS (course) ====================
+        Route::patch('enrollments/{id}/change-batch', [EnrollmentController::class, 'changeBatch'])->name('enrollments.change-batch');
+        Route::post('enrollments/{id}/cancel-request', [EnrollmentController::class, 'cancelRequest'])->name('enrollments.cancel-request');
+        Route::get('enrollments/{enrollment}/certificate', [CertificateController::class, 'download'])->name('enrollments.certificate');
         Route::apiResource('enrollments', EnrollmentController::class);
+        // Message templates (WhatsApp + Email automation) + email history
+        Route::get('admin/message-templates', [MessageTemplateController::class, 'index'])->name('admin.message-templates.index');
+        Route::patch('admin/message-templates/{id}', [MessageTemplateController::class, 'update'])->name('admin.message-templates.update');
+        Route::post('admin/message-templates/{id}/reset', [MessageTemplateController::class, 'reset'])->name('admin.message-templates.reset');
+        Route::post('admin/message-templates/{id}/test', [MessageTemplateController::class, 'sendTest'])->name('admin.message-templates.test');
+        Route::post('admin/message-templates/{id}/preview', [MessageTemplateController::class, 'preview'])->name('admin.message-templates.preview');
+        Route::get('admin/email-logs', [MessageTemplateController::class, 'logs'])->name('admin.email-logs');
+        Route::get('admin/email-logs/{id}', [MessageTemplateController::class, 'showLog'])->name('admin.email-logs.show');
+
+        Route::get('admin/billing-settings', [BillingSettingsController::class, 'show'])->name('admin.billing-settings.show');
+        Route::patch('admin/billing-settings', [BillingSettingsController::class, 'update'])->name('admin.billing-settings.update');
+        Route::get('admin/site-content', [SiteContentController::class, 'show'])->name('admin.site-content.show');
+        Route::patch('admin/site-content', [SiteContentController::class, 'update'])->name('admin.site-content.update');
+        Route::apiResource('faqs', FaqController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        // Refer-a-friend
+        Route::get('referrals/me', [ReferralController::class, 'me'])->name('referrals.me');
+        Route::get('admin/referral-settings', [ReferralController::class, 'adminShow'])->name('admin.referral-settings.show');
+        Route::patch('admin/referral-settings', [ReferralController::class, 'adminUpdate'])->name('admin.referral-settings.update');
+
+        // Admin archive/restore — soft "delete" for admin-managed records
+        Route::patch('admin/archive/{type}/{id}', [ArchiveController::class, 'archive'])->name('admin.archive');
+        Route::patch('admin/archive/{type}/{id}/restore', [ArchiveController::class, 'restore'])->name('admin.archive.restore');
+        Route::get('admin/students-directory', [StudentDirectoryController::class, 'index'])->name('admin.students-directory.index');
+        Route::get('admin/students-directory/{userId}', [StudentDirectoryController::class, 'show'])->name('admin.students-directory.show');
         Route::get('admin/enrollments/stats', [EnrollmentController::class, 'adminStats'])->name('admin.enrollments.stats');
         Route::get('admin/enrollments', [EnrollmentController::class, 'adminIndex'])->name('admin.enrollments.index');
         Route::patch('admin/enrollments/{enrollment}', [EnrollmentController::class, 'adminUpdate'])->name('admin.enrollments.update');
@@ -203,6 +270,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('invoices/{invoice}/crm-status', [InvoiceController::class, 'updateCrmStatus'])->name('invoices.crm-status.update');
 
         // ==================== CONTACT MESSAGES (admin) ====================
+        Route::get('support-requests', [ContactMessageController::class, 'myIndex'])->name('support-requests.index');
         Route::get('admin/contact-messages', [ContactMessageController::class, 'adminIndex'])->name('admin.contact-messages.index');
         Route::get('admin/contact-messages/stats', [ContactMessageController::class, 'stats'])->name('admin.contact-messages.stats');
         Route::get('admin/contact-messages/{contactMessage}', [ContactMessageController::class, 'show'])->name('admin.contact-messages.show');
@@ -272,6 +340,7 @@ Route::prefix('v1')->group(function () {
         // ==================== DEMO REQUESTS ====================
         Route::get('demo-requests', [DemoRequestController::class, 'userIndex'])->name('demo-requests.index');
         Route::post('demo-requests', [DemoRequestController::class, 'store'])->name('demo-requests.store');
+        Route::patch('demo-requests/{demoRequest}', [DemoRequestController::class, 'userUpdate'])->name('demo-requests.user-update');
         Route::get('admin/demo-requests/stats', [DemoRequestController::class, 'stats'])->name('admin.demo-requests.stats');
         Route::get('admin/demo-requests', [DemoRequestController::class, 'adminIndex'])->name('admin.demo-requests.index');
         Route::get('admin/demo-requests/{demoRequest}', [DemoRequestController::class, 'adminShow'])->name('admin.demo-requests.show');

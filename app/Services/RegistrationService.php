@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\WelcomeMail;
+use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -13,8 +14,7 @@ class RegistrationService
 {
     public function __construct(
         private readonly AdminNotificationService $adminNotificationService,
-    ) {
-    }
+    ) {}
 
     public function registerUser(array $data): array
     {
@@ -34,11 +34,29 @@ class RegistrationService
             $user->syncRoles([$roleName]);
             $user->load('roles');
 
+            // Refer-a-friend: give the new user their own code, and if they
+            // signed up through a friend's code, grant the welcome discount.
+            $referrals = app(ReferralService::class);
+            $referrals->ensureCode($user);
+            if ($roleName === 'User') {
+                $referrals->applyReferralCode($user, $data['referral_code'] ?? null);
+            }
+
+            // Group bookings: link any member enrollments that were created
+            // with this email before the account existed.
+            Enrollment::whereNull('user_id')
+                ->where('email', $user->email)
+                ->update(['user_id' => $user->id]);
+
             DB::afterCommit(function () use ($user): void {
                 $freshUser = $user->fresh('roles');
 
                 if ($freshUser) {
                     $this->adminNotificationService->notifyNewRegistration($freshUser);
+
+                    if ($freshUser->hasRole('User')) {
+                        app(TemplateMailer::class)->sendToUser('welcome_account', $freshUser);
+                    }
 
                     // Send welcome email (fail silently — never block registration)
                     try {

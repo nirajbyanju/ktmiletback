@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -39,7 +40,7 @@ class RolePermissionSeeder extends Seeder
 
     public function run(): void
     {
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         foreach (self::SYSTEM_PERMISSIONS as $permissionName) {
             Permission::firstOrCreate([
@@ -51,11 +52,11 @@ class RolePermissionSeeder extends Seeder
         $employeeRole = Role::where('name', 'Employee')->where('guard_name', 'web')->first();
         $userRole = Role::where('name', 'User')->where('guard_name', 'web')->first();
 
-        if ($employeeRole && !$userRole) {
+        if ($employeeRole && ! $userRole) {
             $employeeRole->update(['name' => 'User']);
         }
 
-        foreach (['Super Admin', 'Admin', 'Manager', 'User'] as $roleName) {
+        foreach (['Super Admin', 'Admin', 'User'] as $roleName) {
             Role::firstOrCreate([
                 'name' => $roleName,
                 'guard_name' => 'web',
@@ -102,19 +103,11 @@ class RolePermissionSeeder extends Seeder
         Role::findByName('Super Admin')->syncPermissions(Permission::all());
         Role::findByName('Admin')->syncPermissions(Permission::all());
 
-        Role::findByName('Manager')->syncPermissions([
-            'view_course_catalog', 'create_course_catalog', 'edit_course_catalog',
-            'view_settings', 'edit_settings',
-            'view_settings_menu',
-            'view_settings_profile',
-            'view_testimonials', 'create_testimonials', 'edit_testimonials', 'delete_testimonials', 'upload_testimonials',
-        ]);
-
         Role::findByName('User')->syncPermissions([
             'view_course_catalog',
             'view_settings_profile',
         ]);
 
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

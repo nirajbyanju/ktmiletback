@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\MockTestEnrollment;
 use App\Models\MockTestSubscription;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -22,6 +23,7 @@ class MockTestEnrollmentController extends Controller
             'invoice:id,invoice_number,status,total_npr',
         ])
             ->where('user_id', $request->user()->id)
+            ->whereNull('archived_at')
             ->latest('id')
             ->paginate($this->perPage($request));
 
@@ -33,7 +35,7 @@ class MockTestEnrollmentController extends Controller
         $enrollment = MockTestEnrollment::with(['subscription', 'invoice', 'user:id,first_name,last_name,email'])
             ->findOrFail($id);
 
-        if (!$this->canManageAll($request) && $enrollment->user_id !== $request->user()->id) {
+        if (! $this->canManageAll($request) && $enrollment->user_id !== $request->user()->id) {
             abort(Response::HTTP_FORBIDDEN, 'You cannot access this enrollment.');
         }
 
@@ -50,10 +52,14 @@ class MockTestEnrollmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
-                'total'   => MockTestEnrollment::count(),
-                'active'  => MockTestEnrollment::where('subscription_end', '>=', $today)->count(),
-                'expired' => MockTestEnrollment::where('subscription_end', '<', $today)->count(),
+            'data' => [
+                'total' => MockTestEnrollment::whereNull('archived_at')->count(),
+                'active' => MockTestEnrollment::whereNull('archived_at')->where('subscription_end', '>=', $today)->count(),
+                'expired' => MockTestEnrollment::whereNull('archived_at')->where('subscription_end', '<', $today)->count(),
+                // Subscribers whose invoice is still unpaid (awaiting your verification)
+                'payment_due' => MockTestEnrollment::whereNull('archived_at')
+                    ->whereHas('invoice', fn ($q) => $q->where('status', 'unpaid'))
+                    ->count(),
             ],
         ]);
     }
@@ -68,18 +74,21 @@ class MockTestEnrollmentController extends Controller
             'user:id,first_name,last_name,email,phone',
         ])->latest('id');
 
+        // Archived records are hidden by default; ?archived=1 shows only them
+        $request->boolean('archived')
+            ? $query->whereNotNull('archived_at')
+            : $query->whereNull('archived_at');
+
         if ($request->filled('search')) {
-            $s = '%' . $request->search . '%';
+            $s = '%'.$request->search.'%';
             $query->where(function ($q) use ($s) {
-                $q->whereHas('user', fn ($u) =>
-                    $u->where('first_name', 'like', $s)
-                      ->orWhere('last_name', 'like', $s)
-                      ->orWhere('email', 'like', $s)
+                $q->whereHas('user', fn ($u) => $u->where('first_name', 'like', $s)
+                    ->orWhere('last_name', 'like', $s)
+                    ->orWhere('email', 'like', $s)
                 )
-                ->orWhereHas('subscription', fn ($p) =>
-                    $p->where('subscriptions_name', 'like', $s)
-                      ->orWhere('subscriptions_type', 'like', $s)
-                );
+                    ->orWhereHas('subscription', fn ($p) => $p->where('subscriptions_name', 'like', $s)
+                        ->orWhere('subscriptions_type', 'like', $s)
+                    );
             });
         }
 
@@ -96,48 +105,55 @@ class MockTestEnrollmentController extends Controller
         $this->authorizeManageAll($request);
 
         $data = $request->validate([
-            'subscription_id'    => 'required|integer|exists:mock_test_subscriptions,id',
-            'user_id'            => 'required|integer|exists:users,id',
-            'enrollment_date'    => 'required|date',
+            'subscription_id' => 'required|integer|exists:mock_test_subscriptions,id',
+            'user_id' => 'required|integer|exists:users,id',
+            'enrollment_date' => 'required|date',
             'subscription_start' => 'required|date',
-            'subscription_end'   => 'required|date|after_or_equal:subscription_start',
+            'subscription_end' => 'required|date|after_or_equal:subscription_start',
         ]);
 
         $plan = MockTestSubscription::findOrFail($data['subscription_id']);
 
-        $price    = (float) ($plan->price ?? 0);
+        $price = (float) ($plan->price ?? 0);
         $discount = (float) ($plan->discount ?? 0);
-        $total    = max($price - $discount, 0);
+        $total = max($price - $discount, 0);
 
-        $invoiceNumber = 'MOCK-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+        // VAT-inclusive extraction per admin Billing settings
+        $vatApply = Setting::getBool('vat_apply_mock_test', true);
+        $vatRate = Setting::getFloat('vat_rate', 13);
+        $tax = ($vatApply && $vatRate > 0 && $total > 0)
+            ? round($total - round($total * 100 / (100 + $vatRate), 2), 2)
+            : 0;
+
+        $invoiceNumber = 'MOCK-'.now()->format('Ymd').'-'.strtoupper(Str::random(5));
 
         $invoice = Invoice::create([
-            'invoice_number'            => $invoiceNumber,
-            'user_id'                   => $data['user_id'],
+            'invoice_number' => $invoiceNumber,
+            'user_id' => $data['user_id'],
             'mock_test_subscription_id' => $plan->id,
-            'subtotal_npr'              => $price,
-            'discount_npr'              => $discount,
-            'tax_npr'                   => 0,
-            'total_npr'                 => $total,
-            'status'                    => 'unpaid',
-            'payment_method'            => 'bank_qr',
-            'invoice_date'              => now()->toDateString(),
-            'due_date'                  => now()->addDays(7)->toDateString(),
+            'subtotal_npr' => $price,
+            'discount_npr' => $discount,
+            'tax_npr' => $tax,
+            'total_npr' => $total,
+            'status' => 'unpaid',
+            'payment_method' => 'bank_qr',
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
         ]);
 
         $enrollment = MockTestEnrollment::create([
-            'subscription_id'    => $data['subscription_id'],
-            'invoice_id'         => $invoice->id,
-            'user_id'            => $data['user_id'],
-            'enrollment_date'    => $data['enrollment_date'],
+            'subscription_id' => $data['subscription_id'],
+            'invoice_id' => $invoice->id,
+            'user_id' => $data['user_id'],
+            'enrollment_date' => $data['enrollment_date'],
             'subscription_start' => $data['subscription_start'],
-            'subscription_end'   => $data['subscription_end'],
+            'subscription_end' => $data['subscription_end'],
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Enrolled successfully. Invoice generated.',
-            'data'    => $enrollment->load([
+            'data' => $enrollment->load([
                 'subscription:id,subscriptions_name,subscriptions_type,price,duration,duration_type',
                 'invoice:id,invoice_number,status,total_npr',
                 'user:id,first_name,last_name,email',
@@ -153,7 +169,7 @@ class MockTestEnrollmentController extends Controller
 
         $data = $request->validate([
             'subscription_start' => ['sometimes', 'required', 'date'],
-            'subscription_end'   => ['sometimes', 'required', 'date', 'after_or_equal:subscription_start'],
+            'subscription_end' => ['sometimes', 'required', 'date', 'after_or_equal:subscription_start'],
         ]);
 
         $enrollment->update($data);
@@ -161,7 +177,7 @@ class MockTestEnrollmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Enrollment updated.',
-            'data'    => $enrollment->fresh(['subscription', 'invoice', 'user:id,first_name,last_name,email']),
+            'data' => $enrollment->fresh(['subscription', 'invoice', 'user:id,first_name,last_name,email']),
         ]);
     }
 
@@ -183,14 +199,14 @@ class MockTestEnrollmentController extends Controller
     private function paginated($paginator, string $message): JsonResponse
     {
         return response()->json([
-            'success'    => true,
-            'message'    => $message,
-            'data'       => $paginator->items(),
+            'success' => true,
+            'message' => $message,
+            'data' => $paginator->items(),
             'pagination' => [
-                'total'        => $paginator->total(),
-                'per_page'     => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
                 'current_page' => $paginator->currentPage(),
-                'last_page'    => $paginator->lastPage(),
+                'last_page' => $paginator->lastPage(),
             ],
         ]);
     }
@@ -202,7 +218,7 @@ class MockTestEnrollmentController extends Controller
 
     private function authorizeManageAll(Request $request): void
     {
-        if (!$this->canManageAll($request)) {
+        if (! $this->canManageAll($request)) {
             abort(Response::HTTP_FORBIDDEN, 'Only admins can perform this action.');
         }
     }

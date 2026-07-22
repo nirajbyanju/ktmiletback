@@ -94,6 +94,23 @@
   </tr>
 </table>
 
+<!-- WARNING/CAUTION NOTE -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"
+       style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;
+              margin:0 0 28px;overflow:hidden;">
+  <tr>
+    <td style="padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#dc2626;
+                 text-transform:uppercase;letter-spacing:1.5px;">
+        ⚠️ IMPORTANT NOTICE
+      </p>
+      <p style="margin:0;font-size:13px;color:#991b1b;line-height:1.7;">
+        Please make sure to attend the session on time. <strong>If you miss your scheduled live demo session, you will not be allowed to book or reschedule another demo for this course.</strong>
+      </p>
+    </td>
+  </tr>
+</table>
+
 <!-- JOIN BUTTON -->
 @if($demoRequest->zoom_url)
 <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"

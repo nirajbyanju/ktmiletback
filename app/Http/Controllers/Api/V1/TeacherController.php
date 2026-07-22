@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Batch;
+use App\Models\Course;
+use App\Models\Enrollment;
+use App\Models\Invoice;
 use App\Models\Teacher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,23 +25,34 @@ class TeacherController extends Controller
     {
         $teachers = Teacher::with('courses:id,course_name')
             ->where('status', 'Active')
+            ->where(function ($q) {
+                $q->whereNull('user_id')
+                    ->orWhereHas('user', function ($uq) {
+                        $uq->where('status', 1);
+                    });
+            })
+            ->where(function ($q) {
+                $q->where(fn ($sub) => $sub->whereNotNull('bio')->where('bio', '!=', ''))
+                    ->orWhere(fn ($sub) => $sub->whereNotNull('qualification')->where('qualification', '!=', ''))
+                    ->orWhere(fn ($sub) => $sub->whereNotNull('specialization')->where('specialization', '!=', ''));
+            })
             ->orderBy('name')
             ->get()
             ->map(fn (Teacher $t) => [
-                'id'                => $t->id,
-                'name'              => $t->display_name,
-                'specialization'    => $t->specialization,
-                'qualification'     => $t->qualification,
-                'experience_years'  => $t->experience_years,
-                'bio'               => $t->bio,
+                'id' => $t->id,
+                'name' => $t->display_name,
+                'specialization' => $t->specialization,
+                'qualification' => $t->qualification,
+                'experience_years' => $t->experience_years,
+                'bio' => $t->bio,
                 'profile_photo_url' => $t->profile_photo_url,
-                'courses'           => $t->courses->pluck('course_name')->values(),
+                'courses' => $t->courses->pluck('course_name')->values(),
             ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Teachers retrieved successfully.',
-            'data'    => $teachers,
+            'data' => $teachers,
         ]);
     }
 
@@ -45,7 +60,7 @@ class TeacherController extends Controller
 
     private function authorizeAdmin(Request $request): void
     {
-        if (!$request->user()->hasAnyRole(['Super Admin', 'Admin']) && !$request->user()->can('manage_all')) {
+        if (! $request->user()->hasAnyRole(['Super Admin', 'Admin']) && ! $request->user()->can('manage_all')) {
             abort(Response::HTTP_FORBIDDEN, 'Only admins can perform this action.');
         }
     }
@@ -63,14 +78,23 @@ class TeacherController extends Controller
             $search = $request->string('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('teacher_id', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('specialization', 'LIKE', "%{$search}%");
+                    ->orWhere('teacher_id', 'LIKE', "%{$search}%")
+                    ->orWhere('email', 'LIKE', "%{$search}%")
+                    ->orWhere('specialization', 'LIKE', "%{$search}%");
             });
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->query('status'));
+            $status = $request->query('status');
+            $query->where('status', $status);
+            if ($status === 'Active') {
+                $query->where(function ($q) {
+                    $q->whereNull('user_id')
+                        ->orWhereHas('user', function ($uq) {
+                            $uq->where('status', 1);
+                        });
+                });
+            }
         }
 
         if ($request->filled('course_id')) {
@@ -86,7 +110,7 @@ class TeacherController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        $data      = $this->validated($request);
+        $data = $this->validated($request);
         $courseIds = $data['course_ids'] ?? [];
         unset($data['course_ids']);
 
@@ -96,14 +120,14 @@ class TeacherController extends Controller
 
         $teacher = Teacher::create($data);
 
-        if (!empty($courseIds)) {
+        if (! empty($courseIds)) {
             $teacher->courses()->sync($courseIds);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Teacher created successfully.',
-            'data'    => $teacher->load(['user:id,first_name,last_name,email,phone', 'courses:id,course_name']),
+            'data' => $teacher->load(['user:id,first_name,last_name,email,phone', 'courses:id,course_name']),
         ], Response::HTTP_CREATED);
     }
 
@@ -119,7 +143,7 @@ class TeacherController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Teacher retrieved successfully.',
-            'data'    => $teacher,
+            'data' => $teacher,
         ]);
     }
 
@@ -127,8 +151,8 @@ class TeacherController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        $teacher   = Teacher::findOrFail($id);
-        $data      = $this->validated($request, true);
+        $teacher = Teacher::findOrFail($id);
+        $data = $this->validated($request, true);
         $courseIds = array_key_exists('course_ids', $data) ? $data['course_ids'] : null;
         unset($data['course_ids']);
 
@@ -141,7 +165,7 @@ class TeacherController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Teacher updated successfully.',
-            'data'    => $teacher->fresh(['user:id,first_name,last_name,email,phone', 'courses:id,course_name']),
+            'data' => $teacher->fresh(['user:id,first_name,last_name,email,phone', 'courses:id,course_name']),
         ]);
     }
 
@@ -171,7 +195,7 @@ class TeacherController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Your teacher profile retrieved.',
-            'data'    => $teacher,
+            'data' => $teacher,
         ]);
     }
 
@@ -180,18 +204,18 @@ class TeacherController extends Controller
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
 
         $data = $request->validate([
-            'available_time'   => ['sometimes', 'nullable', 'string', 'max:50'],
-            'available_days'   => ['sometimes', 'nullable', 'array'],
+            'available_time' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'available_days' => ['sometimes', 'nullable', 'array'],
             'available_days.*' => ['string', 'in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'],
-            'available_from'   => ['sometimes', 'nullable', 'date_format:H:i'],
-            'available_to'     => ['sometimes', 'nullable', 'date_format:H:i'],
-            'qualification'    => ['sometimes', 'nullable', 'string', 'max:200'],
-            'specialization'   => ['sometimes', 'nullable', 'string', 'max:100'],
+            'available_from' => ['sometimes', 'nullable', 'date_format:H:i'],
+            'available_to' => ['sometimes', 'nullable', 'date_format:H:i'],
+            'qualification' => ['sometimes', 'nullable', 'string', 'max:200'],
+            'specialization' => ['sometimes', 'nullable', 'string', 'max:100'],
             'experience_years' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:60'],
-            'bio'              => ['sometimes', 'nullable', 'string'],
-            'phone'            => ['sometimes', 'nullable', 'string', 'max:30'],
-            'email'            => ['sometimes', 'nullable', 'email', 'max:100'],
-            'notes'            => ['sometimes', 'nullable', 'string'],
+            'bio' => ['sometimes', 'nullable', 'string'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:100'],
+            'notes' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $teacher->update($data);
@@ -199,7 +223,7 @@ class TeacherController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully.',
-            'data'    => $teacher->fresh(['user:id,first_name,last_name,email,phone', 'courses:id,course_name']),
+            'data' => $teacher->fresh(['user:id,first_name,last_name,email,phone', 'courses:id,course_name']),
         ]);
     }
 
@@ -219,7 +243,7 @@ class TeacherController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Profile photo uploaded.',
-            'data'    => ['profile_photo' => $path, 'url' => Storage::disk('public')->url($path)],
+            'data' => ['profile_photo' => $path, 'url' => Storage::disk('public')->url($path)],
         ]);
     }
 
@@ -227,7 +251,7 @@ class TeacherController extends Controller
     {
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
 
-        if (!$teacher->profile_photo) {
+        if (! $teacher->profile_photo) {
             return response()->json(['success' => false, 'message' => 'No profile photo to delete.'], 404);
         }
 
@@ -245,23 +269,34 @@ class TeacherController extends Controller
      */
     public function myCourses(Request $request): JsonResponse
     {
-        $teacher = Teacher::with([
-            'courses' => function ($q) {
-                $q->with([
-                    'batches' => function ($b) {
-                        $b->select('id', 'course_id', 'batch_type', 'size_label', 'price_npr',
-                                   'schedule_notes', 'class_time', 'class_link', 'is_active',
-                                   'teacher_id', 'start_date', 'end_date')
-                          ->withCount('enrollments as enrollment_count');
-                    },
-                ])->select('courses.id', 'course_name', 'description', 'is_status');
-            },
-        ])->where('user_id', $request->user()->id)->firstOrFail();
+        $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
+
+        // A teacher's courses come from the classes they are actually assigned to
+        // teach (batch.teacher_id) — plus any courses an admin has linked to them
+        // manually (the teacher_courses pivot). The batch assignment is the day-to-day
+        // source of truth, so this stays correct without any extra admin step.
+        $courseIds = $teacher->courses()->pluck('courses.id')
+            ->merge(Batch::where('teacher_id', $teacher->id)->pluck('course_id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $courses = Course::whereIn('id', $courseIds)
+            ->with(['batches' => function ($b) use ($teacher) {
+                // Only the classes this teacher runs, so "My Courses" shows their own.
+                $b->where('teacher_id', $teacher->id)
+                    ->select('id', 'course_id', 'batch_type', 'size_label', 'price_npr',
+                        'schedule_notes', 'class_time', 'class_link', 'is_active',
+                        'teacher_id', 'start_date', 'end_date')
+                    ->withCount('enrollments as enrollment_count');
+            }])
+            ->select('id', 'course_name', 'description', 'is_status')
+            ->get();
 
         return response()->json([
             'success' => true,
             'message' => 'Your courses retrieved.',
-            'data'    => $teacher->courses,
+            'data' => $courses,
         ]);
     }
 
@@ -273,12 +308,12 @@ class TeacherController extends Controller
     {
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
 
-        $batch = \App\Models\Batch::where('teacher_id', $teacher->id)
+        $batch = Batch::where('teacher_id', $teacher->id)
             ->findOrFail($batchId);
 
         $data = $request->validate([
-            'class_link'  => ['nullable', 'string', 'max:500', 'url'],
-            'class_time'  => ['nullable', 'string', 'max:100'],
+            'class_link' => ['nullable', 'string', 'max:500', 'url'],
+            'class_time' => ['nullable', 'string', 'max:100'],
         ]);
 
         $batch->update($data);
@@ -286,7 +321,7 @@ class TeacherController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Batch updated.',
-            'data'    => $batch->only(['id', 'batch_type', 'class_time', 'class_link']),
+            'data' => $batch->only(['id', 'batch_type', 'class_time', 'class_link']),
         ]);
     }
 
@@ -298,22 +333,21 @@ class TeacherController extends Controller
     {
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
 
-        $query = \App\Models\Enrollment::with([
+        $query = Enrollment::with([
             'user:id,first_name,last_name,email,phone',
             'batch:id,course_id,batch_type,class_time,schedule_notes,teacher_id',
             'batch.course:id,course_name',
             'invoice:id,invoice_number,status,total_npr,payment_method,created_at',
         ])
-        ->whereHas('batch', fn ($b) => $b->where('teacher_id', $teacher->id))
-        ->latest('id');
+            ->whereHas('batch', fn ($b) => $b->where('teacher_id', $teacher->id))
+            ->latest('id');
 
         if ($request->filled('search')) {
-            $search = '%' . $request->string('search') . '%';
+            $search = '%'.$request->string('search').'%';
             $query->where(function ($q) use ($search) {
                 $q->where('student_name', 'like', $search)
-                  ->orWhere('email', 'like', $search)
-                  ->orWhereHas('user', fn ($u) =>
-                      $u->where('first_name', 'like', $search)
+                    ->orWhere('email', 'like', $search)
+                    ->orWhereHas('user', fn ($u) => $u->where('first_name', 'like', $search)
                         ->orWhere('last_name', 'like', $search)
                         ->orWhere('email', 'like', $search));
             });
@@ -330,14 +364,14 @@ class TeacherController extends Controller
         $paginator = $query->paginate((int) $request->query('limit', 20));
 
         return response()->json([
-            'success'    => true,
-            'message'    => 'Students retrieved.',
-            'data'       => $paginator->items(),
+            'success' => true,
+            'message' => 'Students retrieved.',
+            'data' => $paginator->items(),
             'pagination' => [
-                'total'        => $paginator->total(),
-                'per_page'     => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
                 'current_page' => $paginator->currentPage(),
-                'last_page'    => $paginator->lastPage(),
+                'last_page' => $paginator->lastPage(),
             ],
         ]);
     }
@@ -350,39 +384,38 @@ class TeacherController extends Controller
     {
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
 
-        $batchIds = \App\Models\Batch::where('teacher_id', $teacher->id)->pluck('id');
+        $batchIds = Batch::where('teacher_id', $teacher->id)->pluck('id');
 
-        $query = \App\Models\Invoice::with([
+        $query = Invoice::with([
             'user:id,first_name,last_name,email,phone',
             'batch:id,course_id,batch_type,teacher_id',
             'batch.course:id,course_name',
         ])
-        ->whereIn('batch_id', $batchIds)
-        ->latest('id');
+            ->whereIn('batch_id', $batchIds)
+            ->latest('id');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
         }
 
         if ($request->filled('search')) {
-            $search = '%' . $request->string('search') . '%';
-            $query->whereHas('user', fn ($u) =>
-                $u->where('first_name', 'like', $search)
-                  ->orWhere('last_name', 'like', $search)
-                  ->orWhere('email', 'like', $search));
+            $search = '%'.$request->string('search').'%';
+            $query->whereHas('user', fn ($u) => $u->where('first_name', 'like', $search)
+                ->orWhere('last_name', 'like', $search)
+                ->orWhere('email', 'like', $search));
         }
 
         $paginator = $query->paginate((int) $request->query('limit', 20));
 
         return response()->json([
-            'success'    => true,
-            'message'    => 'Student invoices retrieved.',
-            'data'       => $paginator->items(),
+            'success' => true,
+            'message' => 'Student invoices retrieved.',
+            'data' => $paginator->items(),
             'pagination' => [
-                'total'        => $paginator->total(),
-                'per_page'     => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
                 'current_page' => $paginator->currentPage(),
-                'last_page'    => $paginator->lastPage(),
+                'last_page' => $paginator->lastPage(),
             ],
         ]);
     }
@@ -394,24 +427,24 @@ class TeacherController extends Controller
         $sometimes = $isUpdate ? 'sometimes|' : '';
 
         return $request->validate([
-            'user_id'          => ['nullable', 'integer', 'exists:users,id'],
-            'teacher_id'       => ['nullable', 'string', 'max:20'],
-            'name'             => ["{$sometimes}required", 'string', 'max:150'],
-            'phone'            => ['nullable', 'string', 'max:30'],
-            'email'            => ['nullable', 'email', 'max:255'],
-            'available_time'   => ['nullable', 'string', 'max:50'],
-            'available_days'   => ['nullable', 'array'],
+            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'teacher_id' => ['nullable', 'string', 'max:20'],
+            'name' => ["{$sometimes}required", 'string', 'max:150'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'available_time' => ['nullable', 'string', 'max:50'],
+            'available_days' => ['nullable', 'array'],
             'available_days.*' => ['string', 'in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'],
-            'available_from'   => ['nullable', 'date_format:H:i'],
-            'available_to'     => ['nullable', 'date_format:H:i'],
-            'qualification'    => ['nullable', 'string', 'max:200'],
-            'specialization'   => ['nullable', 'string', 'max:100'],
+            'available_from' => ['nullable', 'date_format:H:i'],
+            'available_to' => ['nullable', 'date_format:H:i'],
+            'qualification' => ['nullable', 'string', 'max:200'],
+            'specialization' => ['nullable', 'string', 'max:100'],
             'experience_years' => ['nullable', 'integer', 'min:0', 'max:60'],
-            'bio'              => ['nullable', 'string'],
-            'status'           => ['nullable', 'string', 'in:Active,Backup,Inactive'],
-            'notes'            => ['nullable', 'string'],
-            'course_ids'       => ['nullable', 'array'],
-            'course_ids.*'     => ['integer', 'exists:courses,id'],
+            'bio' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', 'in:Active,Backup,Inactive'],
+            'notes' => ['nullable', 'string'],
+            'course_ids' => ['nullable', 'array'],
+            'course_ids.*' => ['integer', 'exists:courses,id'],
         ]);
     }
 
@@ -430,14 +463,14 @@ class TeacherController extends Controller
     private function paginated($paginator, string $message): JsonResponse
     {
         return response()->json([
-            'success'    => true,
-            'message'    => $message,
-            'data'       => $paginator->items(),
+            'success' => true,
+            'message' => $message,
+            'data' => $paginator->items(),
             'pagination' => [
-                'total'        => $paginator->total(),
-                'per_page'     => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
                 'current_page' => $paginator->currentPage(),
-                'last_page'    => $paginator->lastPage(),
+                'last_page' => $paginator->lastPage(),
             ],
         ]);
     }
