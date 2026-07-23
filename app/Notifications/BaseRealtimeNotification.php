@@ -13,7 +13,10 @@ abstract class BaseRealtimeNotification extends Notification
 
     final public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        // 'broadcast' deliberately omitted: no websocket server is configured,
+        // so broadcasting only queues jobs that nothing ever processes.
+        // The notification bell reads the 'database' channel.
+        return ['database'];
     }
 
     final public function toArray(object $notifiable): array
@@ -64,6 +67,8 @@ abstract class BaseRealtimeNotification extends Notification
             'action_url' => $actionUrl,
             'action_label' => $actionLabel,
             'entity' => $entity,
+            // Flat name for the normalizer (data.actor_name) + full object for future use
+            'actor_name' => $actor['name'] ?? null,
             'actor' => $actor,
             'meta' => $meta,
             'created_at' => now()->toISOString(),
@@ -72,7 +77,7 @@ abstract class BaseRealtimeNotification extends Notification
 
     protected function userData(?User $user): array
     {
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 

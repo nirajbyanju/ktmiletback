@@ -2,36 +2,14 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class StatusSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $status = [
-            [
-                'label' => 'pending',
-                'slug' => 'pending',
-            ],
-            [
-                'label' => 'approved',
-                'slug' => 'approved',
-            ],
-            [
-                'label' => 'rejected',
-                'slug' => 'rejected',
-            ],
-        ];
-
-        foreach ($status as $status) {
-            \App\Models\Data\BlogStatus::updateOrCreate(
-                ['slug' => $status['slug']],
-                $status
-            );
-        }
+        // Blog statuses are now managed as enum values in the application.
+        // This seeder is intentionally left empty.
+        $this->command->info('StatusSeeder: nothing to seed.');
     }
 }

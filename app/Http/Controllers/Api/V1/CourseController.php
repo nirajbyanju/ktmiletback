@@ -6,19 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Course::withCount('batches')->with('batches');
+        $query = Course::withCount('batches')->with(['batches', 'modules']);
 
         if ($request->filled('search')) {
             $search = $request->string('search');
-            $query->where('name', 'LIKE', "%{$search}%");
+            $query->where('course_name', 'LIKE', "%{$search}%");
         }
 
-        $courses = $query->orderBy('name')->paginate($this->perPage($request));
+        $courses = $query->orderBy('course_name')->paginate($this->perPage($request));
 
         return $this->paginated($courses, 'Courses retrieved successfully.');
     }
@@ -30,18 +31,18 @@ class CourseController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Course created successfully.',
-            'data' => $course->load('batches'),
+            'data'    => $course->load(['batches', 'modules']),
         ], Response::HTTP_CREATED);
     }
 
     public function show(int $id)
     {
-        $course = Course::with('batches')->findOrFail($id);
+        $course = Course::with(['batches', 'modules'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
             'message' => 'Course retrieved successfully.',
-            'data' => $course,
+            'data'    => $course,
         ]);
     }
 
@@ -53,7 +54,7 @@ class CourseController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Course updated successfully.',
-            'data' => $course->fresh('batches'),
+            'data'    => $course->fresh(['batches', 'modules']),
         ]);
     }
 
@@ -69,15 +70,19 @@ class CourseController extends Controller
 
     private function validated(Request $request, bool $isUpdate = false): array
     {
-        $required = $isUpdate ? 'sometimes|required' : 'required';
+        $required = $isUpdate ? ['sometimes', 'required'] : ['required'];
 
         return $request->validate([
-            'name' => [$required, 'string', 'max:100'],
-            'duration_weeks' => [$required, 'integer', 'min:1'],
-            'total_hours' => [$required, 'integer', 'min:1'],
-            'delivery_mode' => [$required, 'string', 'max:50'],
-            'instruction_lang' => [$required, 'string', 'max:50'],
-            'skills' => ['nullable', 'string'],
+            'course_name'   => [...$required, 'string', 'max:100'],
+            'description'   => ['nullable', 'string'],
+            'duration'      => ['nullable', 'integer', 'min:1'],
+            'duration_type' => ['nullable', 'string', 'max:50'],
+            'delivery_mode' => ['nullable', 'string', 'max:100'],
+            'delivery'      => [...$required, Rule::in(['online', 'offline', 'hybrid'])],
+            'support'       => ['nullable', 'array'],
+            'instruction'   => ['nullable', 'array'],
+            'schedule'      => ['nullable', 'array'],
+            'features'      => ['nullable', 'array'],
         ]);
     }
 
@@ -89,14 +94,14 @@ class CourseController extends Controller
     private function paginated($paginator, string $message)
     {
         return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => $paginator->items(),
+            'success'    => true,
+            'message'    => $message,
+            'data'       => $paginator->items(),
             'pagination' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'per_page'     => $paginator->perPage(),
                 'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
+                'last_page'    => $paginator->lastPage(),
             ],
         ]);
     }

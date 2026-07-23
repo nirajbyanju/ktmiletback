@@ -9,19 +9,39 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         $this->call([
+            // Core setup
             MenuSeeder::class,
             RolePermissionSeeder::class,
+            PaymentStatusSeeder::class,
             UserSeeder::class,
-            StatusSeeder::class,
+
+            // // Users
+            // UserSeeder::class,
+            TeacherSeeder::class,
+            // StudentSeeder::class,
+
+            // // Course catalog, enrollments & invoices
             CourseCatalogSeeder::class,
+            // EnrollmentInvoiceSeeder::class,
+
+            // // Mock test plans, enrollments & invoices
+            MockTestSubscriptionSeeder::class,
+            MockTestEnrollmentSeeder::class,
+
+            // // Exam booking plans, enrollments & invoices
+            ExamBookingSeeder::class,
+
+            // // Offers & Claims
+            OfferSeeder::class,
+            OfferClaimSeeder::class,
+
+            // // Misc
+            ContactMessageSeeder::class,
+            TestimonialSeeder::class,
+            TestStudentSeeder::class,
         ]);
     }
 }

@@ -1,31 +1,26 @@
 <?php
+
 // app/Http/Controllers/Api/EmployeePermissionController.php
 
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use App\Models\User;
-use App\Models\Menu;
 use App\Models\PermissionMatrix;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class EmployeePermissionController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-    }
-
     /**
      * Get all employee roles with their permissions
      */
     public function getEmployeeRoles()
     {
-        $roles = Role::where('name', '!=', 'Super Admin')
+        $roles = Role::whereNotIn('name', ['Super Admin', 'Manager'])
             ->with('permissions')
             ->get()
             ->map(function ($role) {
@@ -33,13 +28,13 @@ class EmployeePermissionController extends Controller
                     'id' => $role->id,
                     'name' => $role->name,
                     'employee_count' => User::role($role->name)->count(),
-                    'permissions' => $role->permissions->pluck('name')
+                    'permissions' => $role->permissions->pluck('name'),
                 ];
             });
 
         return response()->json([
             'success' => true,
-            'data' => $roles
+            'data' => $roles,
         ]);
     }
 
@@ -58,21 +53,21 @@ class EmployeePermissionController extends Controller
             'Orders',
             'Inventory',
             'Customers',
-            'Analytics'
+            'Analytics',
         ];
 
-        $roles = Role::where('name', '!=', 'Super Admin')->get();
-        
+        $roles = Role::whereNotIn('name', ['Super Admin', 'Manager'])->get();
+
         $matrix = [];
         foreach ($features as $feature) {
             $featureKey = Str::slug($feature);
             $matrix[$feature] = [];
-            
+
             foreach ($roles as $role) {
                 $permission = PermissionMatrix::where('feature_name', $featureKey)
                     ->where('role_id', $role->id)
                     ->first();
-                
+
                 $matrix[$feature][$role->name] = [
                     'role_id' => $role->id,
                     'permissions' => $permission ? $permission->getPermissionsArray() : [
@@ -83,15 +78,15 @@ class EmployeePermissionController extends Controller
                         'approve' => false,
                         'export' => false,
                         'upload' => false,
-                        'all' => false
-                    ]
+                        'all' => false,
+                    ],
                 ];
             }
         }
 
         return response()->json([
             'success' => true,
-            'data' => $matrix
+            'data' => $matrix,
         ]);
     }
 
@@ -103,13 +98,13 @@ class EmployeePermissionController extends Controller
         $validator = Validator::make($request->all(), [
             'feature' => 'required|string',
             'permissions' => 'required|array',
-            'permissions.*' => 'in:view,create,edit,delete,approve,export,upload,all'
+            'permissions.*' => 'in:view,create,edit,delete,approve,export,upload,all',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -120,7 +115,7 @@ class EmployeePermissionController extends Controller
         $matrix = PermissionMatrix::updateOrCreate(
             [
                 'feature_name' => $feature,
-                'role_id' => $role->id
+                'role_id' => $role->id,
             ],
             [
                 'can_view' => in_array('view', $request->permissions) || in_array('all', $request->permissions),
@@ -131,7 +126,7 @@ class EmployeePermissionController extends Controller
                 'can_export' => in_array('export', $request->permissions) || in_array('all', $request->permissions),
                 'can_upload' => in_array('upload', $request->permissions) || in_array('all', $request->permissions),
                 'can_all' => in_array('all', $request->permissions),
-                'permission_key' => $feature . '_' . $role->id
+                'permission_key' => $feature.'_'.$role->id,
             ]
         );
 
@@ -141,7 +136,7 @@ class EmployeePermissionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Permissions assigned to employee role successfully',
-            'data' => $matrix
+            'data' => $matrix,
         ]);
     }
 
@@ -151,7 +146,7 @@ class EmployeePermissionController extends Controller
     public function getEmployeesByRole($roleId)
     {
         $role = Role::findOrFail($roleId);
-        
+
         $employees = User::role($role->name)
             ->select('id', 'name', 'email', 'created_at')
             ->paginate(15);
@@ -159,7 +154,7 @@ class EmployeePermissionController extends Controller
         return response()->json([
             'success' => true,
             'data' => $employees,
-            'role' => $role->name
+            'role' => $role->name,
         ]);
     }
 
@@ -183,7 +178,7 @@ class EmployeePermissionController extends Controller
             if ($matrix->$field) {
                 $permission = Permission::firstOrCreate([
                     'name' => $permissionName,
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ]);
                 $role->givePermissionTo($permission);
             } else {

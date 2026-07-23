@@ -24,8 +24,7 @@ class UserAccessController extends BaseController
     public function __construct(
         private readonly UserMenuService $userMenuService,
         private readonly UserAdministrationService $userAdministrationService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -49,6 +48,9 @@ class UserAccessController extends BaseController
             })
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', (int) $request->get('status'));
+            })
+            ->when($request->filled('role'), function ($query) use ($request) {
+                $query->whereHas('roles', fn ($q) => $q->where('name', (string) $request->get('role')));
             })
             ->orderBy('first_name')
             ->paginate((int) $request->get('per_page', 15));
@@ -119,6 +121,11 @@ class UserAccessController extends BaseController
         }
 
         $user->syncRoles($roles->pluck('name')->all());
+
+        // Auto-create Teacher profile if Teacher role was just assigned
+        if ($roles->contains(fn ($role) => $role->name === 'Teacher')) {
+            $this->userAdministrationService->ensureTeacherProfile($user);
+        }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -228,7 +235,7 @@ class UserAccessController extends BaseController
     ): ?JsonResponse {
         $actor = $request->user();
 
-        if (!$actor || $actor->hasRole('Super Admin')) {
+        if (! $actor || $actor->hasRole('Super Admin')) {
             return null;
         }
 

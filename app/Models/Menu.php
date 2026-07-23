@@ -53,13 +53,13 @@ class Menu extends Model
         return $query->whereNull('parent_id');
     }
 
-    public function scopeWithPermission(Builder $query, $user)
+    public function scopeWithPermission(Builder $query, User $user): Builder
     {
-        if ($user->hasRole('Super Admin')) {
+        if ($user->hasAnyRole(['Super Admin', 'Admin'])) {
             return $query;
         }
 
-        return $query->where(function($q) use ($user) {
+        return $query->where(function ($q) use ($user) {
             $q->whereNull('permission_name')
               ->orWhereIn('permission_name', $user->getAllPermissions()->pluck('name'));
         });
@@ -85,7 +85,7 @@ class Menu extends Model
 
     public function allowsAction(User $user, string $action): bool
     {
-        if ($user->hasRole('Super Admin')) {
+        if ($user->hasAnyRole(['Super Admin', 'Admin'])) {
             return true;
         }
 
@@ -97,11 +97,11 @@ class Menu extends Model
 
         return false;
     }
-    
+
     // Helper method to check if menu is accessible
     public function isAccessibleBy(User $user): bool
     {
-        if ($user->hasRole('Super Admin')) {
+        if ($user->hasAnyRole(['Super Admin', 'Admin'])) {
             return true;
         }
 

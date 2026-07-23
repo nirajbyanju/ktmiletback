@@ -1,13 +1,14 @@
 <?php
+
 // database/seeders/PermissionMatrixSeeder.php
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 use App\Models\PermissionMatrix;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class PermissionMatrixSeeder extends Seeder
 {
@@ -23,21 +24,16 @@ class PermissionMatrixSeeder extends Seeder
 
         $rolePermissions = [
             'Admin' => [
-                'menus' => ['view'=>true,'create'=>true,'edit'=>true,'delete'=>true],
-                'settings' => ['view'=>true,'edit'=>true],
-                'course_catalog' => ['view'=>true,'create'=>true,'edit'=>true,'delete'=>true],
-                'invoices' => ['view'=>true,'create'=>true,'edit'=>true,'approve'=>true],
-                'enrollments' => ['view'=>true,'create'=>true,'edit'=>true],
-            ],
-            'Manager' => [
-                'course_catalog'=>['view'=>true,'create'=>true,'edit'=>true],
-                'invoices'=>['view'=>true,'create'=>true,'edit'=>true],
-                'enrollments'=>['view'=>true,'create'=>true,'edit'=>true],
+                'menus' => ['view' => true, 'create' => true, 'edit' => true, 'delete' => true],
+                'settings' => ['view' => true, 'edit' => true],
+                'course_catalog' => ['view' => true, 'create' => true, 'edit' => true, 'delete' => true],
+                'invoices' => ['view' => true, 'create' => true, 'edit' => true, 'approve' => true],
+                'enrollments' => ['view' => true, 'create' => true, 'edit' => true],
             ],
             'User' => [
-                'course_catalog'=>['view'=>true],
-                'enrollments'=>['view'=>true],
-            ]
+                'course_catalog' => ['view' => true],
+                'enrollments' => ['view' => true],
+            ],
         ];
 
         foreach ($rolePermissions as $roleName => $features) {
@@ -88,7 +84,7 @@ class PermissionMatrixSeeder extends Seeder
 
         foreach ($map as $field => $permName) {
             if ($matrix->$field) {
-                $permission = Permission::firstOrCreate(['name' => $permName,'guard_name'=>'web']);
+                $permission = Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
                 $role->givePermissionTo($permission);
             }
         }

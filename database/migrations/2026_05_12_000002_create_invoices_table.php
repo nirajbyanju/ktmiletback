@@ -12,7 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('invoice_number')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('batch_id')->constrained('batches')->cascadeOnDelete();
+            $table->foreignId('batch_id')->nullable()->constrained('batches')->nullOnDelete();
+            $table->unsignedBigInteger('mock_test_subscription_id')->nullable();
+            $table->unsignedBigInteger('exam_booking_enrollment_id')->nullable();
             $table->decimal('subtotal_npr', 10, 2);
             $table->decimal('discount_npr', 10, 2)->default(0);
             $table->decimal('tax_npr', 10, 2)->default(0);
@@ -24,14 +26,11 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable();
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
+            $table->userAuditable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
-        Schema::table('enrollments', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->after('id')->constrained('users')->nullOnDelete();
-            $table->foreignId('invoice_id')->nullable()->after('batch_id')->constrained('invoices')->nullOnDelete();
-            $table->string('status', 30)->default('active')->after('amount_paid');
-        });
     }
 
     public function down(): void

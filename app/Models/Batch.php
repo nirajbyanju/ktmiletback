@@ -6,29 +6,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Batch extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'package_id',
         'course_id',
         'batch_type',
+        'best_for',
+        'size_label',
+        'is_featured',
         'min_size',
         'max_size',
         'price_npr',
-        'offer_label',
-        'discount_type',
-        'discount_value',
-        'offer_starts_at',
-        'offer_ends_at',
-        'is_price_variable',
         'schedule_notes',
         'start_date',
         'end_date',
         'class_time',
         'class_link',
         'is_active',
+        'teacher_id',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -36,18 +39,31 @@ class Batch extends Model
         'min_size' => 'integer',
         'max_size' => 'integer',
         'price_npr' => 'decimal:2',
-        'discount_value' => 'decimal:2',
-        'is_price_variable' => 'boolean',
+
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
-        'offer_starts_at' => 'date:Y-m-d',
-        'offer_ends_at' => 'date:Y-m-d',
+
         'is_active' => 'boolean',
+        'is_featured' => 'boolean',
+        'teacher_id' => 'integer',
+        'created_by' => 'integer',
+        'updated_by' => 'integer',
+        'deleted_by' => 'integer',
     ];
+
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(Package::class);
+    }
 
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class);
     }
 
     public function enrollments(): HasMany

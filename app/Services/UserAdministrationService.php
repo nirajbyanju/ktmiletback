@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\RefreshToken;
+use App\Models\Teacher;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -15,14 +18,19 @@ class UserAdministrationService
 {
     public function __construct(
         private readonly AdminNotificationService $adminNotificationService,
-    ) {
-    }
+    ) {}
 
     public function createUser(array $data, User $actor): User
     {
         return DB::transaction(function () use ($data, $actor) {
             $roles = $this->resolveRoles($data['roles'] ?? []);
             $this->guardRestrictedRoles($roles, $actor);
+
+            // No password given: set a random one and email a set-password link
+            $passwordOmitted = empty($data['password']);
+            if ($passwordOmitted) {
+                $data['password'] = Str::random(40);
+            }
 
             $user = User::create([
                 'userCode' => $this->generateUserCode(),
@@ -43,13 +51,34 @@ class UserAdministrationService
 
             $user->syncRoles($roles->pluck('name')->all());
 
+            // Auto-create Teacher profile when the Teacher role is assigned
+            if ($roles->contains(fn (Role $role) => $role->name === 'Teacher')) {
+                $this->ensureTeacherProfile($user);
+            }
+
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-            DB::afterCommit(function () use ($user): void {
+            DB::afterCommit(function () use ($user, $passwordOmitted): void {
                 $freshUser = $user->fresh('roles');
 
-                if ($freshUser) {
-                    $this->adminNotificationService->notifyNewRegistration($freshUser);
+                if (! $freshUser) {
+                    return;
+                }
+
+                $this->adminNotificationService->notifyNewRegistration($freshUser);
+
+                // Students get the same welcome email as self-registration
+                if ($freshUser->hasRole('User')) {
+                    app(TemplateMailer::class)->sendToUser('welcome_account', $freshUser);
+                }
+
+                // Account created without a password: send the set-password link
+                if ($passwordOmitted) {
+                    try {
+                        Password::sendResetLink(['email' => $freshUser->email]);
+                    } catch (\Throwable) {
+                        // Never block user creation on mail issues
+                    }
                 }
             });
 
@@ -66,7 +95,7 @@ class UserAdministrationService
                 'status' => $isActive ? 1 : 0,
             ]);
 
-            if (!$isActive) {
+            if (! $isActive) {
                 $targetUser->tokens()->delete();
                 RefreshToken::where('user_id', $targetUser->id)->delete();
             }
@@ -110,7 +139,7 @@ class UserAdministrationService
 
     protected function guardStatusChange(User $targetUser, bool $isActive, User $actor): void
     {
-        if (!$actor->hasRole('Super Admin') && $targetUser->hasRole('Super Admin')) {
+        if (! $actor->hasRole('Super Admin') && $targetUser->hasRole('Super Admin')) {
             throw ValidationException::withMessages([
                 'user' => ['Only a Super Admin can change the status of a Super Admin user.'],
             ]);
@@ -138,6 +167,29 @@ class UserAdministrationService
                 ]);
             }
         }
+    }
+
+    /**
+     * Ensure a Teacher profile exists for this user.
+     * Called automatically when the Teacher role is assigned.
+     * Safe to call multiple times — uses firstOrCreate.
+     */
+    public function ensureTeacherProfile(User $user): Teacher
+    {
+        return Teacher::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'teacher_id' => Teacher::nextTeacherId(),
+                'name' => trim($user->first_name.' '.$user->last_name) ?: $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'status' => 'Active',
+                // Required columns with no DB default — admin fills these in
+                // later on the Teachers page
+                'course' => 'To be assigned',
+                'available_time' => 'To be assigned',
+            ]
+        );
     }
 
     protected function generateUserCode(): string
