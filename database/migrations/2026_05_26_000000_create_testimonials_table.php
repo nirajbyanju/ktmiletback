@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('tag', 100);
             $table->string('country', 100);
             $table->text('quote');
-            $table->json('cats')->default('[]');
+            $table->json('cats');
             $table->boolean('is_featured')->default(false);
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->string('photo')->nullable();
