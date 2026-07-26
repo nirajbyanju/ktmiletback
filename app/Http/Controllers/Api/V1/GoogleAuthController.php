@@ -4,18 +4,12 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Models\RefreshToken;
 use App\Models\User;
-use App\Services\UserMenuService;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends BaseController
 {
-    public function __construct(
-        private readonly UserMenuService $userMenuService,
-    ) {
-    }
-
     public function redirect()
     {
         /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
@@ -25,7 +19,7 @@ class GoogleAuthController extends BaseController
 
     public function callback()
     {
-        $frontendUrl = rtrim(env('FRONTEND_URL'), '/');
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url')), '/');
 
         /** @var \Laravel\Socialite\Two\GoogleProvider $provider */
         $provider = Socialite::driver('google');
@@ -52,7 +46,7 @@ class GoogleAuthController extends BaseController
             $userCode   = 'Opsh-' . now()->year . '-' . ((User::max('id') ?? 0) + 1);
 
             $user = User::create([
-                'userCode'     => $userCode,
+                'user_code'    => $userCode,
                 'name'         => $fullName,
                 'first_name'   => $firstName,
                 'last_name'    => $lastName,
@@ -104,7 +98,6 @@ class GoogleAuthController extends BaseController
                 'has_password' => (bool) $user->has_password,
                 'roles'        => $user->roles->pluck('name')->values()->all(),
             ],
-            'menus' => $this->userMenuService->getForUser($user),
         ];
 
         $session = base64_encode(json_encode($payload));
